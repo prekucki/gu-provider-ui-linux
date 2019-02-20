@@ -1,28 +1,22 @@
-cfg_gu_provider_indicator = configuration_data()
-cfg_gu_provider_indicator.set('DATADIR', join_paths(get_option('prefix'),get_option('datadir')))
-cfg_gu_provider_indicator.set('PKGDATADIR', join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-indicator'))
-cfg_gu_provider_indicator.set('GETTEXT_PACKAGE', 'gu-provider-indicator')
-cfg_gu_provider_indicator.set('RELEASE_NAME', 'gu-provider-indicator')
-cfg_gu_provider_indicator.set('PREFIX', get_option('prefix'))
-cfg_gu_provider_indicator.set('VERSION', '1.0.0')
-cfg_gu_provider_indicator.set('TESTSRCDIR', meson.source_root())
+cfg_gu_provider_ui_linux = configuration_data()
+cfg_gu_provider_ui_linux.set('DATADIR', join_paths(get_option('prefix'),get_option('datadir')))
+cfg_gu_provider_ui_linux.set('PKGDATADIR', join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'))
+cfg_gu_provider_ui_linux.set('GETTEXT_PACKAGE', 'gu-provider-ui-linux')
+cfg_gu_provider_ui_linux.set('RELEASE_NAME', 'gu-provider-ui-linux')
+cfg_gu_provider_ui_linux.set('PREFIX', get_option('prefix'))
+cfg_gu_provider_ui_linux.set('VERSION', '1.0.0')
+cfg_gu_provider_ui_linux.set('TESTSRCDIR', meson.source_root())
 
-cfgfile_1 = configure_file(input: 'Config.vala.base',output: 'Config.vala',configuration: cfg_gu_provider_indicator)
+cfgfile_1 = configure_file(input: 'Config.vala.base',output: 'Config.vala',configuration: cfg_gu_provider_ui_linux)
 
-gu_provider_indicator_deps = [appindicator_0_1_dep]
-gu_provider_indicator_deps += [atk_dep]
-gu_provider_indicator_deps += [cairo_dep]
-gu_provider_indicator_deps += [gdk_3_0_dep]
-gu_provider_indicator_deps += [gdk_pixbuf_2_0_dep]
-gu_provider_indicator_deps += [gio_2_0_dep]
-gu_provider_indicator_deps += [glib_2_0_dep]
-gu_provider_indicator_deps += [gobject_2_0_dep]
-gu_provider_indicator_deps += [gtk_3_0_dep]
-gu_provider_indicator_deps += [pango_dep]
-gu_provider_indicator_deps += [x11_dep]
-gu_provider_indicator_sources = [cfgfile_1]
-gu_provider_indicator_sources += ['gu-provider-indicator.vala']
-gu_provider_indicator_link_args = ['-rdynamic']
+gu_provider_ui_linux_deps = [appindicator_0_1_dep, atk_dep, cairo_dep, gdk_3_0_dep, gdk_pixbuf_2_0_dep, gio_2_0_dep, glib_2_0_dep, gobject_2_0_dep, gtk_3_0_dep, pango_dep, soup_dep, x11_dep]
+gu_provider_ui_linux_sources = [cfgfile_1, 'gu-provider-ui-linux.vala']
+gu_provider_ui_linux_link_args = ['-rdynamic']
 
-executable('gu-provider-indicator',gu_provider_indicator_sources,dependencies: gu_provider_indicator_deps,link_args: gu_provider_indicator_link_args,install: true)
-
+executable('gu-provider-ui-linux',
+           gu_provider_ui_linux_sources,
+           resources,
+           dependencies: gu_provider_ui_linux_deps,
+           vala_args: ['--gresources=../data/resources.xml'],
+           link_args: gu_provider_ui_linux_link_args,
+           install: true)

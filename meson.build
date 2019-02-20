@@ -1,6 +1,6 @@
-project('gu-provider-indicator',['c','vala'])
+project('gu-provider-ui-linux',['c','vala'])
 
-add_global_arguments('-DGETTEXT_PACKAGE="gu-provider-indicator"',language: 'c')
+add_global_arguments('-DGETTEXT_PACKAGE="gu-provider-ui-linux"',language: 'c')
 
 appindicator_0_1_dep = dependency('appindicator3-0.1')
 atk_dep = dependency('atk')
@@ -13,12 +13,16 @@ gobject_2_0_dep = dependency('gobject-2.0')
 gtk_3_0_dep = dependency('gtk+-3.0')
 pango_dep = dependency('pango')
 x11_dep = dependency('x11')
+soup_dep = dependency('libsoup-2.4')
 
-meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-indicator'),join_paths(meson.current_source_dir(),'data/local','','*'))
-
-meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'doc','gu-provider-indicator'),join_paths(meson.current_source_dir(),'doc','','*'))
+meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'data/local','','*'))
+meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'doc','gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'doc','','*'))
 
 install_data('data/icons/golem.svg',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/scalable/apps'))
 install_data('data/icons/golemu.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
-install_data('data/pixmaps/x.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-indicator'))
+install_data('data/pixmaps/x.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'))
+
+gnome = import('gnome')
+resources = gnome.compile_resources('resources', 'data/resources.xml', source_dir: 'data', c_name: 'resources')
+
 subdir('src')
