@@ -1,72 +1,66 @@
 using AppIndicator;
-using GLib;
 using Gtk;
 using Soup;
 
-public class IndicatorExample {
-    public static int main(string[] args) {
-        Gtk.init(ref args);
+Window window;
+Gtk.Menu menu;
+Gtk.ListStore hub_list_model;
 
-        var indicator = new Indicator("Golem Unlimited", "golemu", IndicatorCategory.APPLICATION_STATUS);
-        Window window = null;
+public void on_configure_menu_activate(Gtk.MenuItem menu) {
+    window.show_all();
+}
 
-        try {
-            var builder = new Builder();
-            //builder.add_from_file("gu-provider-ui-linux.glade");
-            builder.add_from_resource("/network/golem/gu-provider-ui-linux/window.glade");
-            //builder.connect_signals(null);
-            window = builder.get_object("window") as Window;
-            //window.show_all();
-        } catch (Error e) {
-            stderr.printf("Error while loading GUI: %s\n", e.message);
-            return 1;
-        }
+public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
+    var where = new TreePath.from_string(path);
+    stdout.printf(path);
+    stdout.printf("\n");
+    TreeIter iter;
+    hub_list_model.get_iter(out iter, where);
+    /*hub_list_model.set (iter, 0, !toggle.active);
+    stdout.printf(path);*/
+}
 
-        indicator.set_status(IndicatorStatus.ACTIVE);
-        indicator.set_icon("golemu");
-        //indicator.set_attention_icon("x");
+int main(string[] args) {
+    Gtk.init(ref args);
 
-        var menu = new Gtk.Menu();
-        var item = new Gtk.MenuItem.with_label("Snooze");
-        var item_auto_mode = new Gtk.CheckMenuItem.with_label("Auto Mode");
+    var indicator = new Indicator("Golem Unlimited Provider UI", "golemu", IndicatorCategory.APPLICATION_STATUS);
 
-        item.activate.connect(() => {
-            //indicator.set_status(IndicatorStatus.ATTENTION);
-        });
-        item.show();
-        item_auto_mode.show();
-        menu.append(item);
-        menu.append(item_auto_mode);
-
-        var item_configure = new Gtk.MenuItem.with_label("Configure");
-        item_configure.show();
-        item_configure.activate.connect(() => {
-            stdout.printf("HELLO\n");
-            window.show_all();
-        });
-        menu.append(item_configure);
-
-        item = new Gtk.MenuItem.with_label("Exit");
-        item.show();
-        item.activate.connect(() => {
-            Gtk.main_quit();
-        });
-        menu.append(item);
-
-        indicator.set_menu(menu);
-        indicator.set_label("Connected", "A");
-
-        var session = new Soup.Session();
-        var message = new Soup.Message("GET", "http://localhost:61621/");
-        session.send_message(message);
-        message.response_headers.foreach ((name, val) => {
-            stdout.printf ("Name: %s -> Value: %s\n", name, val);
-        });
-        stdout.printf("Message length: %lld\n%s\n",
-                       message.response_body.length,
-                       message.response_body.data);
-
-        Gtk.main();
-        return 0;
+    var builder = new Builder();
+    try {
+        builder.add_from_resource("/network/golem/gu-provider-ui-linux/window.glade");
+        window = builder.get_object("window") as Window;
+        menu = builder.get_object("menu") as Gtk.Menu;
+        hub_list_model = builder.get_object("hub_list_model") as Gtk.ListStore;
+        builder.connect_signals(null);
+    } catch (Error e) {
+        stderr.printf("Error while loading GUI: %s\n", e.message);
+        return 1;
     }
+
+    //indicator.set_status(IndicatorStatus.ATTENTION);
+    //indicator.set_attention_icon("x");
+    //indicator.set_label("Connected", "A");
+
+    indicator.set_status(IndicatorStatus.ACTIVE);
+    indicator.set_icon("golemu");
+    indicator.set_menu(menu);
+
+    /*var list = new Gtk.ListStore(2, typeof(bool), typeof(string));
+    TreeIter iter; list.append(out iter); list.set(iter, 0, true, 1, "hello");
+    list.foreach(() => { stdout.printf("Test 1\n"); return false; });
+    hub_list.set_model(list);*/
+
+    var session = new Soup.Session();
+    var message = new Soup.Message("GET", "http://localhost:61621/");
+    session.send_message(message);
+    message.response_headers.foreach ((name, val) => {
+        stdout.printf ("Name: %s -> Value: %s\n", name, val);
+    });
+    stdout.printf("Message length: %lld\n%s\n",
+                  message.response_body.length,
+                  message.response_body.data);
+
+    window.show_all();
+    Gtk.main();
+    return 0;
 }

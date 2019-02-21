@@ -2,6 +2,38 @@
 <!-- Generated with glade 3.22.1 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
+  <object class="GtkListStore" id="hub_list_model">
+    <columns>
+      <!-- column-name selected -->
+      <column type="gboolean"/>
+      <!-- column-name name -->
+      <column type="gchararray"/>
+      <!-- column-name ip -->
+      <column type="gchararray"/>
+      <!-- column-name node_id -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0">True</col>
+        <col id="1" translatable="yes">Test</col>
+        <col id="2" translatable="yes">asdfsfadsdfa</col>
+        <col id="3" translatable="yes">0x123sdsdfadsffadfdafds</col>
+      </row>
+      <row>
+        <col id="0">False</col>
+        <col id="1" translatable="yes">Test2</col>
+        <col id="2" translatable="yes">123</col>
+        <col id="3" translatable="yes">0x123sdsdfadsffadfdafds</col>
+      </row>
+      <row>
+        <col id="0">True</col>
+        <col id="1" translatable="yes">Test3</col>
+        <col id="2" translatable="yes">asdf</col>
+        <col id="3" translatable="yes">0x123sdsdfadsffadfdafds</col>
+      </row>
+    </data>
+  </object>
   <object class="GtkWindow" id="window">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Golem Unlimited Provider UI</property>
@@ -16,7 +48,7 @@
         <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkCheckButton">
+          <object class="GtkCheckButton" id="auto_mode">
             <property name="label" translatable="yes">Automatically connect to all local hubs and to selected hubs</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
@@ -34,13 +66,68 @@
           </packing>
         </child>
         <child>
-          <object class="GtkTreeView">
+          <object class="GtkScrolledWindow">
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="margin_left">10</property>
             <property name="margin_right">10</property>
-            <child internal-child="selection">
-              <object class="GtkTreeSelection"/>
+            <property name="shadow_type">in</property>
+            <child>
+              <object class="GtkTreeView" id="hub_list">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="model">hub_list_model</property>
+                <child internal-child="selection">
+                  <object class="GtkTreeSelection">
+                    <property name="mode">none</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn">
+                    <child>
+                      <object class="GtkCellRendererToggle" id="hub_selected">
+                        <signal name="toggled" handler="on_hub_selected_toggled" swapped="no"/>
+                      </object>
+                      <attributes>
+                        <attribute name="active">0</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn">
+                    <property name="title" translatable="yes">Name</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="name"/>
+                      <attributes>
+                        <attribute name="text">1</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn">
+                    <property name="title" translatable="yes">IP Address</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="ip"/>
+                      <attributes>
+                        <attribute name="text">1</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkTreeViewColumn">
+                    <property name="title" translatable="yes">Node ID</property>
+                    <child>
+                      <object class="GtkCellRendererText" id="node_id"/>
+                      <attributes>
+                        <attribute name="text">3</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+              </object>
             </child>
           </object>
           <packing>
@@ -50,7 +137,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton">
+          <object class="GtkButton" id="save_button">
             <property name="label">gtk-save</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
@@ -67,6 +154,44 @@
             <property name="position">2</property>
           </packing>
         </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkMenu" id="menu">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkCheckMenuItem" id="auto_menu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Auto Mode</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="snooze_menu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Snooze</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="configure_menu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Configure</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="on_configure_menu_activate" swapped="no"/>
+      </object>
+    </child>
+    <child>
+      <object class="GtkMenuItem" id="exit_menu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Exit</property>
+        <property name="use_underline">True</property>
+        <signal name="activate" handler="gtk_main_quit" swapped="no"/>
       </object>
     </child>
   </object>
