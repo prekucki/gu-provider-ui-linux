@@ -1,6 +1,7 @@
 using AppIndicator;
 using Gtk;
 using Soup;
+using Json;
 
 Window window;
 Gtk.Menu menu;
@@ -11,13 +12,9 @@ public void on_configure_menu_activate(Gtk.MenuItem menu) {
 }
 
 public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
-    var where = new TreePath.from_string(path);
-    stdout.printf(path);
-    stdout.printf("\n");
     TreeIter iter;
-    hub_list_model.get_iter(out iter, where);
-    /*hub_list_model.set (iter, 0, !toggle.active);
-    stdout.printf(path);*/
+    hub_list_model.get_iter(out iter, new TreePath.from_string(path));
+    hub_list_model.set(iter, 0, !toggle.active);
 }
 
 int main(string[] args) {
@@ -25,7 +22,7 @@ int main(string[] args) {
 
     var indicator = new Indicator("Golem Unlimited Provider UI", "golemu", IndicatorCategory.APPLICATION_STATUS);
 
-    var builder = new Builder();
+    var builder = new Gtk.Builder();
     try {
         builder.add_from_resource("/network/golem/gu-provider-ui-linux/window.glade");
         window = builder.get_object("window") as Window;
@@ -51,7 +48,7 @@ int main(string[] args) {
     hub_list.set_model(list);*/
 
     var session = new Soup.Session();
-    var message = new Soup.Message("GET", "http://localhost:61621/");
+    var message = new Soup.Message("GET", "http://localhost:61621/connections/list/all");
     session.send_message(message);
     message.response_headers.foreach ((name, val) => {
         stdout.printf ("Name: %s -> Value: %s\n", name, val);
@@ -59,6 +56,28 @@ int main(string[] args) {
     stdout.printf("Message length: %lld\n%s\n",
                   message.response_body.length,
                   message.response_body.data);
+
+    //string cli_hub_info;
+    //Process.spawn_command_line_sync ("gu-provider --json lan list -I gu-hub", out cli_hub_info, null, null);
+    //stdout.printf(cli_hub_info);
+    var json_parser = new Json.Parser();
+    json_parser.load_from_data((string)message.response_body.flatten().data, -1);
+    //json_parser.load_from_data(cli_hub_info, -1);
+    var answer = json_parser.get_root().get_array();
+    //var elem = answer.get_object_element(0);
+    foreach (var node in answer.get_elements()) {
+        Json.Array arr = node.get_array();
+        stdout.printf("%s %s\n", arr.get_string_element(0), arr.get_string_element(1));
+        /*TreeIter iter;
+        hub_list_model.get_iter(out iter, new TreePath.from_string(path));
+        hub_list_model.set(iter, 0, !toggle.active);*/
+        TreeIter iter;
+        hub_list_model.append(out iter);
+        hub_list_model.set(iter, 0, false);
+        hub_list_model.set(iter, 1, arr.get_string_element(1));
+        hub_list_model.set(iter, 2, arr.get_string_element(0));
+        hub_list_model.set(iter, 3, "0xTODO");
+   }
 
     window.show_all();
     Gtk.main();

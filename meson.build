@@ -14,6 +14,7 @@ gtk_3_0_dep = dependency('gtk+-3.0')
 pango_dep = dependency('pango')
 x11_dep = dependency('x11')
 soup_dep = dependency('libsoup-2.4')
+json_dep = dependency('json-glib-1.0')
 
 meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'data/local','','*'))
 meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'doc','gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'doc','','*'))
