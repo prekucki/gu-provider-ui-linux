@@ -47,12 +47,12 @@ public void on_new_service (Interface @interface, Protocol protocol, string name
 */
 
 public void on_found_new_node(Interface @interface, Protocol protocol, string name, string type, string domain, string hostname, Avahi.Address? address, uint16 port, StringList? txt) {
-    stdout.printf("YES %s %s %s %s %s\n", name, type, domain, hostname, address.to_string());
+    stdout.printf("YES %s %s %s %s %s %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
 }
 
 public void on_new_avahi_service (Interface @interface, Protocol protocol, string name, string type, string domain, LookupResultFlags flags) {
     stdout.printf("%s %s %s\n", name, type, domain);
-    ServiceResolver resolver = new ServiceResolver(Interface.UNSPEC, Protocol.UNSPEC, name, type, domain, Protocol.UNSPEC);
+    ServiceResolver resolver = new ServiceResolver(Interface.UNSPEC, protocol, name, type, domain, protocol);
     resolver.found.connect(on_found_new_node);
     resolver.failure.connect((err) => { warning(err.message); });
     try {
