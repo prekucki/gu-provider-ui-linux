@@ -47,7 +47,30 @@ public void on_new_service (Interface @interface, Protocol protocol, string name
 */
 
 public void on_found_new_node(Interface @interface, Protocol protocol, string name, string type, string domain, string hostname, Avahi.Address? address, uint16 port, StringList? txt) {
-    stdout.printf("YES %s %s %s %s %s %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
+    if (protocol == Protocol.INET) {
+        stdout.printf("YES %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
+        TreeIter iter;
+        hub_list_model.append(out iter);
+        hub_list_model.set(iter, 0, false);
+        hub_list_model.set(iter, 1, hostname);
+        hub_list_model.set(iter, 2, address.to_string() + ":" + port.to_string());
+        txt = txt.find("node_id");
+        if (txt != null) {
+            string key;
+            char[] val;
+            txt.get_pair(out key, out val);
+            hub_list_model.set(iter, 3, (string)val);
+            try {
+                string is_managed_by_hub;
+                Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g " + (string)val, out is_managed_by_hub, null, null);
+                if (bool.parse(is_managed_by_hub.strip())) {
+                    hub_list_model.set(iter, 0, true);
+                }
+            } catch (GLib.Error err) { warning(err.message); }
+        } else {
+            hub_list_model.set(iter, 3, "");
+        }
+    }
 }
 
 public void on_new_avahi_service (Interface @interface, Protocol protocol, string name, string type, string domain, LookupResultFlags flags) {
@@ -112,6 +135,7 @@ int main(string[] args) {
     stdout.printf("Message length: %lld\n%s\n", message.response_body.length, message.response_body.data);
     */
 
+    /*
     string cli_hub_info;
     try {
         Process.spawn_command_line_sync ("gu-provider --json lan list -I gu-hub", out cli_hub_info, null, null);
@@ -129,7 +153,7 @@ int main(string[] args) {
         //Json.Array arr = node.get_array();
         Json.Object obj = node.get_object();
         //stdout.printf("%s %s\n", arr.get_string_element(0), arr.get_string_element(1));
-        /*hub_list_model.set(iter, 0, false); hub_list_model.set(iter, 1, arr.get_string_element(1)); */
+        //hub_list_model.set(iter, 0, false); hub_list_model.set(iter, 1, arr.get_string_element(1));
         string descr = obj.get_string_member("Description");
         if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
         TreeIter iter;
@@ -139,6 +163,7 @@ int main(string[] args) {
         hub_list_model.set(iter, 2, obj.get_string_member("Addresses"));
         hub_list_model.set(iter, 3, descr);
    }
+   */
 
     window.show_all();
     Gtk.main();
