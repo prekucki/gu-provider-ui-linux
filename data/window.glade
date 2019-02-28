@@ -38,6 +38,7 @@
             <property name="margin_top">10</property>
             <property name="margin_bottom">10</property>
             <property name="draw_indicator">True</property>
+            <signal name="toggled" handler="on_auto_mode_toggled" swapped="no"/>
           </object>
           <packing>
             <property name="expand">False</property>
@@ -51,6 +52,7 @@
             <property name="can_focus">True</property>
             <property name="margin_left">10</property>
             <property name="margin_right">10</property>
+            <property name="margin_bottom">10</property>
             <property name="shadow_type">in</property>
             <child>
               <object class="GtkTreeView" id="hub_list">
@@ -114,24 +116,6 @@
             <property name="expand">True</property>
             <property name="fill">True</property>
             <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="save_button">
-            <property name="label">gtk-save</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="margin_left">10</property>
-            <property name="margin_right">10</property>
-            <property name="margin_top">10</property>
-            <property name="margin_bottom">10</property>
-            <property name="use_stock">True</property>
-          </object>
-          <packing>
-            <property name="expand">False</property>
-            <property name="fill">True</property>
-            <property name="position">2</property>
           </packing>
         </child>
       </object>

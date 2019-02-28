@@ -7,8 +7,10 @@ using Avahi;
 Window window;
 Gtk.Menu menu;
 Gtk.ListStore hub_list_model;
+Gtk.ToggleButton auto_mode;
 Avahi.Client avahi_client;
 List<Avahi.ServiceResolver> avahi_resolvers;
+const string GU_PROVIDER_PATH = "/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider";
 
 public void on_configure_menu_activate(Gtk.MenuItem menu) {
     window.show_all();
@@ -18,6 +20,13 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     TreeIter iter;
     hub_list_model.get_iter(out iter, new TreePath.from_string(path));
     hub_list_model.set(iter, 0, !toggle.active);
+    /* TODO
+    Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "a" : "d") + " auto", null, null, null);
+    */
+}
+
+public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
+    Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "a" : "d") + " auto", null, null, null);
 }
 
 /*
@@ -95,6 +104,7 @@ int main(string[] args) {
         window = builder.get_object("window") as Window;
         menu = builder.get_object("menu") as Gtk.Menu;
         hub_list_model = builder.get_object("hub_list_model") as Gtk.ListStore;
+        auto_mode = builder.get_object("auto_mode") as Gtk.ToggleButton;
         builder.connect_signals(null);
     } catch (GLib.Error e) {
         stderr.printf("Error while loading GUI: %s\n", e.message);
@@ -121,6 +131,10 @@ int main(string[] args) {
     indicator.set_status(IndicatorStatus.ACTIVE);
     indicator.set_icon("golemu");
     indicator.set_menu(menu);
+
+    string is_provider_in_auto_mode;
+    Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
+    auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
 
     /*var list = new Gtk.ListStore(2, typeof(bool), typeof(string));
     TreeIter iter; list.append(out iter); list.set(iter, 0, true, 1, "hello");
