@@ -23,6 +23,8 @@ meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','
 
 install_data('data/icons/golem.svg',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/scalable/apps'))
 install_data('data/icons/golemu.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
+install_data('data/icons/golemu-red.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
+install_data('data/icons/golemu-green.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
 install_data('data/pixmaps/x.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'))
 
 gnome = import('gnome')

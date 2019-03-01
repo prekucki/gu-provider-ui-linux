@@ -1,5 +1,6 @@
 using AppIndicator;
 using Gtk;
+using GLib;
 using Soup;
 using Json;
 using Avahi;
@@ -10,7 +11,21 @@ Gtk.ListStore hub_list_model;
 Gtk.ToggleButton auto_mode;
 Avahi.Client avahi_client;
 List<Avahi.ServiceResolver> avahi_resolvers;
+Indicator indicator;
+
 const string GU_PROVIDER_PATH = "/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider";
+const int CHECK_STATUS_EVERY_MS = 1000;
+
+public bool on_update_status() {
+    try {
+        string ret;
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " server status", out ret, null, null);
+        indicator.set_icon(ret.index_of("is running") != -1 ? "golemu-red" : "golemu-green");
+        //indicator.set_status(IndicatorStatus.ATTENTION);
+        //indicator.set_attention_icon("golemu-red");
+    } catch (GLib.Error err) { warning(err.message); }
+    return true;
+}
 
 public void on_configure_menu_activate(Gtk.MenuItem menu) {
     window.show_all();
@@ -18,15 +33,20 @@ public void on_configure_menu_activate(Gtk.MenuItem menu) {
 
 public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     TreeIter iter;
+    bool new_val = !toggle.active;
     hub_list_model.get_iter(out iter, new TreePath.from_string(path));
-    hub_list_model.set(iter, 0, !toggle.active);
-    /* TODO
-    Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "a" : "d") + " auto", null, null, null);
-    */
+    hub_list_model.set(iter, 0, new_val);
+    GLib.Value node_id;
+    hub_list_model.get_value(iter, 3, out node_id);
+    try {
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (new_val ? "a" : "d") + " " + (string)node_id, null, null, null);
+    } catch (GLib.Error err) { warning(err.message); }
 }
 
 public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
-    Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "a" : "d") + " auto", null, null, null);
+    try {
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "a" : "d") + " auto", null, null, null);
+    } catch (GLib.Error err) { warning(err.message); }
 }
 
 /*
@@ -57,10 +77,10 @@ public void on_new_service (Interface @interface, Protocol protocol, string name
 
 public void on_found_new_node(Interface @interface, Protocol protocol, string name, string type, string domain, string hostname, Avahi.Address? address, uint16 port, StringList? txt) {
     if (protocol == Protocol.INET) {
-        stdout.printf("YES %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
+        stdout.printf("New node: %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
         TreeIter iter;
         hub_list_model.append(out iter);
-        hub_list_model.set(iter, 0, false);
+        //hub_list_model.set(iter, 0, false);
         hub_list_model.set(iter, 1, hostname);
         hub_list_model.set(iter, 2, address.to_string() + ":" + port.to_string());
         txt = txt.find("node_id");
@@ -72,9 +92,7 @@ public void on_found_new_node(Interface @interface, Protocol protocol, string na
             try {
                 string is_managed_by_hub;
                 Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g " + (string)val, out is_managed_by_hub, null, null);
-                if (bool.parse(is_managed_by_hub.strip())) {
-                    hub_list_model.set(iter, 0, true);
-                }
+                hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
             } catch (GLib.Error err) { warning(err.message); }
         } else {
             hub_list_model.set(iter, 3, "");
@@ -83,7 +101,7 @@ public void on_found_new_node(Interface @interface, Protocol protocol, string na
 }
 
 public void on_new_avahi_service (Interface @interface, Protocol protocol, string name, string type, string domain, LookupResultFlags flags) {
-    stdout.printf("%s %s %s\n", name, type, domain);
+    //stdout.printf("%s %s %s\n", name, type, domain);
     ServiceResolver resolver = new ServiceResolver(Interface.UNSPEC, protocol, name, type, domain, protocol);
     resolver.found.connect(on_found_new_node);
     resolver.failure.connect((err) => { warning(err.message); });
@@ -96,7 +114,7 @@ public void on_new_avahi_service (Interface @interface, Protocol protocol, strin
 int main(string[] args) {
     Gtk.init(ref args);
 
-    var indicator = new Indicator("Golem Unlimited Provider UI", "golemu", IndicatorCategory.APPLICATION_STATUS);
+    indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
 
     var builder = new Gtk.Builder();
     try {
@@ -118,7 +136,6 @@ int main(string[] args) {
     avahi_client = new Client();
     try {
         avahi_client.start();
-        stdout.printf("HELLO\n");
         avahi_service_browser.attach(avahi_client);
     } catch (Avahi.Error err) { warning(err.message); }
 
@@ -129,11 +146,13 @@ int main(string[] args) {
     //indicator.set_label("Connected", "A");
 
     indicator.set_status(IndicatorStatus.ACTIVE);
-    indicator.set_icon("golemu");
+    //indicator.set_icon("golemu-red");
     indicator.set_menu(menu);
 
     string is_provider_in_auto_mode;
-    Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
+    try {
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
+    } catch (GLib.Error err) { warning(err.message); }
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
 
     /*var list = new Gtk.ListStore(2, typeof(bool), typeof(string));
@@ -178,6 +197,8 @@ int main(string[] args) {
         hub_list_model.set(iter, 3, descr);
    }
    */
+
+    GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
 
     window.show_all();
     Gtk.main();
