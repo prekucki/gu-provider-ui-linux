@@ -36,16 +36,18 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     bool new_val = !toggle.active;
     hub_list_model.get_iter(out iter, new TreePath.from_string(path));
     hub_list_model.set(iter, 0, new_val);
-    GLib.Value node_id;
+    GLib.Value node_id, ip_port;
+    hub_list_model.get_value(iter, 2, out ip_port);
     hub_list_model.get_value(iter, 3, out node_id);
     try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (new_val ? "a" : "d") + " " + (string)node_id, null, null, null);
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (new_val ? "a" : "d")
+            + " " + (string)node_id + " " + (string)ip_port, null, null, null);
     } catch (GLib.Error err) { warning(err.message); }
 }
 
 public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
     try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "a" : "d") + " auto", null, null, null);
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "A" : "D"), null, null, null);
     } catch (GLib.Error err) { warning(err.message); }
 }
 
@@ -80,9 +82,10 @@ public void on_found_new_node(Interface @interface, Protocol protocol, string na
         stdout.printf("New node: %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
         TreeIter iter;
         hub_list_model.append(out iter);
-        //hub_list_model.set(iter, 0, false);
         hub_list_model.set(iter, 1, hostname);
-        hub_list_model.set(iter, 2, address.to_string() + ":" + port.to_string());
+        string ip_port = protocol == Protocol.INET6 ? "[" + address.to_string() + "]" + ":" + port.to_string()
+                            : address.to_string() + ":" + port.to_string();
+        hub_list_model.set(iter, 2, ip_port);
         txt = txt.find("node_id");
         if (txt != null) {
             string key;
@@ -130,7 +133,7 @@ int main(string[] args) {
     }
 
     //-------------------------------------------------------------------------------------------------
-    var avahi_service_browser = new ServiceBrowser("_unlimited._tcp");
+    var avahi_service_browser = new ServiceBrowser("_gu_hub._tcp");
     avahi_service_browser.new_service.connect(on_new_avahi_service);
     avahi_resolvers = new List<ServiceResolver>();
     avahi_client = new Client();
