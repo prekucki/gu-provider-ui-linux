@@ -18,8 +18,8 @@ json_dep = dependency('json-glib-1.0')
 avahi_gobject_dep = dependency('avahi-gobject')
 avahi_client_dep = dependency('avahi-client')
 
-meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'data/local','','*'))
-meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'doc','gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'doc','','*'))
+#meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'data/local','','*'))
+#meson.add_install_script(join_paths(meson.current_source_dir(),'meson_scripts','install_data.sh'),join_paths(get_option('prefix'),get_option('datadir'),'doc','gu-provider-ui-linux'),join_paths(meson.current_source_dir(),'doc','','*'))
 
 install_data('data/icons/golem.svg',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/scalable/apps'))
 install_data('data/icons/golemu.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))

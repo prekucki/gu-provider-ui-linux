@@ -16,6 +16,9 @@ Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
 Gtk.TextView add_hub_info;
+Gtk.Label provider_status;
+
+ServiceBrowser avahi_service_browser;
 
 const string GU_PROVIDER_PATH = "/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider";
 const int CHECK_STATUS_EVERY_MS = 1000;
@@ -24,9 +27,8 @@ public bool on_update_status() {
     try {
         string ret;
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " server status", out ret, null, null);
-        indicator.set_icon(ret.index_of("is running") != -1 ? "golemu-red" : "golemu-green");
-        //indicator.set_status(IndicatorStatus.ATTENTION);
-        //indicator.set_attention_icon("golemu-red");
+        indicator.set_icon(ret.index_of("is running") != -1 ? "golemu-green" : "golemu-red");
+        provider_status.set_text("Status: " + ret.strip());
     } catch (GLib.Error err) { warning(err.message); }
     return true;
 }
@@ -111,10 +113,19 @@ public void on_new_avahi_service (Interface @interface, Protocol protocol, strin
     } catch (Avahi.Error err) { warning(err.message); }
 }
 
+void find_hubs_using_avahi() {
+    avahi_service_browser = new ServiceBrowser("_gu_hub._tcp");
+    avahi_service_browser.new_service.connect(on_new_avahi_service);
+    avahi_resolvers = new List<ServiceResolver>();
+    avahi_client = new Client();
+    try {
+        avahi_client.start();
+        avahi_service_browser.attach(avahi_client);
+    } catch (Avahi.Error err) { warning(err.message); }
+}
+
 int main(string[] args) {
     Gtk.init(ref args);
-
-    indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
 
     var builder = new Gtk.Builder();
     try {
@@ -127,58 +138,38 @@ int main(string[] args) {
         add_hub_ip = builder.get_object("add_hub_ip") as Gtk.Entry;
         add_hub_port = builder.get_object("add_hub_port") as Gtk.Entry;
         add_hub_info = builder.get_object("add_hub_info") as Gtk.TextView;
+        provider_status = builder.get_object("provider_status") as Gtk.Label;
         builder.connect_signals(null);
     } catch (GLib.Error e) {
         stderr.printf("Error while loading GUI: %s\n", e.message);
         return 1;
     }
 
-    //-------------------------------------------------------------------------------------------------
-    // Uncomment to turn on Avahi support.
-    /*
-    var avahi_service_browser = new ServiceBrowser("_gu_hub._tcp");
-    avahi_service_browser.new_service.connect(on_new_avahi_service);
-    avahi_resolvers = new List<ServiceResolver>();
-    avahi_client = new Client();
-    try {
-        avahi_client.start();
-        avahi_service_browser.attach(avahi_client);
-    } catch (Avahi.Error err) { warning(err.message); }
-    */
-    //-------------------------------------------------------------------------------------------------
-
-    //indicator.set_status(IndicatorStatus.ATTENTION);
-    //indicator.set_attention_icon("x");
-    //indicator.set_label("Connected", "A");
-
+    indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
+    indicator.set_icon("golemu");
     indicator.set_status(IndicatorStatus.ACTIVE);
-    //indicator.set_icon("golemu-red");
     indicator.set_menu(menu);
 
+    /* check auto/manual mode */
     string is_provider_in_auto_mode;
     try {
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
     } catch (GLib.Error err) { warning(err.message); }
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
 
+    /* check hub permissions */
+    var json_parser = new Json.Parser();
     string cli_hub_info;
     try {
         Process.spawn_command_line_sync (GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
     } catch (GLib.Error err) { warning(err.message); }
     stdout.printf(cli_hub_info);
-
-    var json_parser = new Json.Parser();
-    //json_parser.load_from_data((string)message.response_body.flatten().data, -1);
     try {
         json_parser.load_from_data(cli_hub_info, -1);
     } catch (GLib.Error err) { warning(err.message); }
     var answer = json_parser.get_root().get_array();
-    //var elem = answer.get_object_element(0);
     foreach (var node in answer.get_elements()) {
-        //Json.Array arr = node.get_array();
         Json.Object obj = node.get_object();
-        //stdout.printf("%s %s\n", arr.get_string_element(0), arr.get_string_element(1));
-        //hub_list_model.set(iter, 0, false); hub_list_model.set(iter, 1, arr.get_string_element(1));
         string descr = obj.get_string_member("Description");
         if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
         TreeIter iter;
@@ -189,13 +180,17 @@ int main(string[] args) {
         hub_list_model.set(iter, 3, descr);
         try {
             string is_managed_by_hub;
-            Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g " + (string)descr, out is_managed_by_hub, null, null);
+            Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
             hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
             stdout.printf("%s %s", descr, is_managed_by_hub);
         } catch (GLib.Error err) { warning(err.message); }
-   }
+    }
 
+    /* periodically check provider status */
     GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
+
+    /* uncomment to turn on mdns discovery of hub nodes */
+    /* find_hubs_using_avahi(); */
 
     main_window.show_all();
     Gtk.main();
