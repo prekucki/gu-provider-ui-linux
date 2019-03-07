@@ -4,5 +4,5 @@ Encoding=UTF-8
 Name=Golem Unlimited Provider UI
 Comment=Golem Unlimited Provider UI
 Exec=gu-provider-ui-linux
-Icon=golemu.png
+Icon=golem.svg
 Terminal=false
