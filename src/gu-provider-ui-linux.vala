@@ -62,10 +62,16 @@ public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
     } catch (GLib.Error err) { warning(err.message); }
 }
 
+void show_message(Window window, string message) {
+    var dialog = new Gtk.MessageDialog(window, Gtk.DialogFlags.MODAL, Gtk.MessageType.WARNING, Gtk.ButtonsType.OK, message);
+    dialog.response.connect((result) => { dialog.destroy(); });
+    dialog.show();
+}
+
 public bool add_new_hub(Gtk.Button button) {
     var session = new Soup.Session();
     var message = new Soup.Message("GET", "http://" + add_hub_ip.text + ":" + add_hub_port.text + "/node_id/");
-    session.send_message(message);
+    if (session.send_message(message) != 200) { show_message(add_hub_window, "Cannot connect to " + add_hub_ip.text + "."); return true; }
     string[] hub_info = ((string)message.response_body.data).split(" ");
     add_hub_info.buffer.text = "Adding " + hub_info[1] + " with node ID " + hub_info[0] + ".";
     return true;
