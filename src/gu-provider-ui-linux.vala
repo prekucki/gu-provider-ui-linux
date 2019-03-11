@@ -22,12 +22,13 @@ ServiceBrowser avahi_service_browser;
 
 const string GU_PROVIDER_PATH = "/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider";
 const int CHECK_STATUS_EVERY_MS = 1000;
+const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 
 public bool on_update_status() {
     try {
         string ret;
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " server status", out ret, null, null);
-        indicator.set_icon(ret.index_of("is running") != -1 ? "golemu-green" : "golemu-red");
+        indicator.set_icon(ret.index_of("is running") != -1 ? "golemu" : "golemu-red");
         provider_status.set_text("Status: " + ret.strip());
     } catch (GLib.Error err) { warning(err.message); }
     return true;
@@ -41,13 +42,13 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     TreeIter iter;
     bool new_val = !toggle.active;
     hub_list_model.get_iter(out iter, new TreePath.from_string(path));
-    hub_list_model.set(iter, 0, new_val);
     GLib.Value node_id, ip_port;
     hub_list_model.get_value(iter, 2, out ip_port);
     hub_list_model.get_value(iter, 3, out node_id);
     try {
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (new_val ? "a" : "d")
             + " " + (string)node_id + " " + (string)ip_port, null, null, null);
+        hub_list_model.set(iter, 0, new_val);
     } catch (GLib.Error err) { warning(err.message); }
 }
 
@@ -78,12 +79,12 @@ public bool on_window_delete_event(Gtk.Window window) {
 
 public void on_found_new_node(Interface @interface, Protocol protocol, string name, string type, string domain, string hostname, Avahi.Address? address, uint16 port, StringList? txt) {
     if (protocol == Protocol.INET) {
-        stdout.printf("New node: %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, address.to_string(), protocol.to_string());
+        string ip_str = address.to_string();
+        //stdout.printf("New node: %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, ip_str, protocol.to_string());
         TreeIter iter;
         hub_list_model.append(out iter);
         hub_list_model.set(iter, 1, hostname);
-        string ip_port = protocol == Protocol.INET6 ? "[" + address.to_string() + "]" + ":" + port.to_string()
-                            : address.to_string() + ":" + port.to_string();
+        string ip_port = protocol == Protocol.INET6 ? ("[" + ip_str + "]" + ":" + port.to_string()) : (ip_str + ":" + port.to_string());
         hub_list_model.set(iter, 2, ip_port);
         txt = txt.find("node_id");
         if (txt != null) {
@@ -95,7 +96,7 @@ public void on_found_new_node(Interface @interface, Protocol protocol, string na
                 string is_managed_by_hub;
                 Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g " + (string)val, out is_managed_by_hub, null, null);
                 hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-                stdout.printf("%s %s", (string)val, is_managed_by_hub);
+                //stdout.printf("%s %s", (string)val, is_managed_by_hub);
             } catch (GLib.Error err) { warning(err.message); }
         } else {
             hub_list_model.set(iter, 3, "");
@@ -146,7 +147,7 @@ int main(string[] args) {
     }
 
     indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
-    indicator.set_icon("golemu");
+    indicator.set_icon("golemu-red");
     indicator.set_status(IndicatorStatus.ACTIVE);
     indicator.set_menu(menu);
 
@@ -192,7 +193,15 @@ int main(string[] args) {
     /* uncomment to turn on mdns discovery of hub nodes */
     /* find_hubs_using_avahi(); */
 
-    main_window.show_all();
+    /* show main window if the config file does not exists, i.e. the app was launched for the first time */
+    bool config_exists = false;
+    string config_file_path = GLib.Path.build_filename(GLib.Environment.get_user_config_dir(), CONFIG_FILE_NAME);
+    KeyFile config_file = new KeyFile();
+    try { if (config_file.load_from_file(config_file_path, NONE)) config_exists = true; } catch (GLib.Error err) {}
+    if (!config_exists) {
+        try { config_file.save_to_file(config_file_path); } catch (GLib.Error err) { warning(err.message); }
+        main_window.show_all();
+    }
     Gtk.main();
     return 0;
 }

@@ -25,7 +25,10 @@ install_data('data/icons/golem.svg',install_dir: join_paths(get_option('prefix')
 install_data('data/icons/golemu.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
 install_data('data/icons/golemu-red.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
 install_data('data/icons/golemu-green.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'icons','hicolor/64x64/apps'))
-install_data('data/pixmaps/x.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'))
+#install_data('data/pixmaps/x.png',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'gu-provider-ui-linux'))
+
+install_data('data/gu-provider-ui-linux.desktop',install_dir: join_paths(get_option('sysconfdir'),'xdg','autostart'))
+install_data('data/gu-provider-ui-linux.desktop',install_dir: join_paths(get_option('prefix'),get_option('datadir'),'applications'))
 
 gnome = import('gnome')
 resources = gnome.compile_resources('resources', 'data/resources.xml', source_dir: 'data', c_name: 'resources')
