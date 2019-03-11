@@ -38,6 +38,10 @@ public void on_configure_menu_activate(Gtk.MenuItem menu) {
     main_window.show_all();
 }
 
+public void on_exit_menu_activate(Gtk.MenuItem menu) {
+    Process.exit(0);
+}
+
 public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     TreeIter iter;
     bool new_val = !toggle.active;
@@ -125,83 +129,95 @@ void find_hubs_using_avahi() {
     } catch (Avahi.Error err) { warning(err.message); }
 }
 
-int main(string[] args) {
-    Gtk.init(ref args);
-
-    var builder = new Gtk.Builder();
-    try {
-        builder.add_from_resource("/network/golem/gu-provider-ui-linux/window.glade");
-        main_window = builder.get_object("main_window") as Window;
-        add_hub_window = builder.get_object("add_hub_window") as Window;
-        menu = builder.get_object("menu") as Gtk.Menu;
-        hub_list_model = builder.get_object("hub_list_model") as Gtk.ListStore;
-        auto_mode = builder.get_object("auto_mode") as Gtk.ToggleButton;
-        add_hub_ip = builder.get_object("add_hub_ip") as Gtk.Entry;
-        add_hub_port = builder.get_object("add_hub_port") as Gtk.Entry;
-        add_hub_info = builder.get_object("add_hub_info") as Gtk.TextView;
-        provider_status = builder.get_object("provider_status") as Gtk.Label;
-        builder.connect_signals(null);
-    } catch (GLib.Error e) {
-        stderr.printf("Error while loading GUI: %s\n", e.message);
-        return 1;
+public class GUProviderUI : Gtk.Application {
+    Gtk.Builder builder = new Gtk.Builder();
+    int num_launched = 0;
+    public GUProviderUI() {
+        GLib.Object(application_id: "network.golem.gu-provider-ui-linux", flags: ApplicationFlags.FLAGS_NONE);
     }
-
-    indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
-    indicator.set_icon("golemu-red");
-    indicator.set_status(IndicatorStatus.ACTIVE);
-    indicator.set_menu(menu);
-
-    /* check auto/manual mode */
-    string is_provider_in_auto_mode;
-    try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
-    } catch (GLib.Error err) { warning(err.message); }
-    auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
-
-    /* check hub permissions */
-    var json_parser = new Json.Parser();
-    string cli_hub_info;
-    try {
-        Process.spawn_command_line_sync (GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
-    } catch (GLib.Error err) { warning(err.message); }
-    stdout.printf(cli_hub_info);
-    try {
-        json_parser.load_from_data(cli_hub_info, -1);
-    } catch (GLib.Error err) { warning(err.message); }
-    var answer = json_parser.get_root().get_array();
-    foreach (var node in answer.get_elements()) {
-        Json.Object obj = node.get_object();
-        string descr = obj.get_string_member("Description");
-        if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
-        TreeIter iter;
-        hub_list_model.append(out iter);
-        hub_list_model.set(iter, 0, false);
-        hub_list_model.set(iter, 1, obj.get_string_member("Host name"));
-        hub_list_model.set(iter, 2, obj.get_string_member("Addresses"));
-        hub_list_model.set(iter, 3, descr);
+    protected override void startup() {
+        base.startup();
         try {
-            string is_managed_by_hub;
-            Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
-            hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-            stdout.printf("%s %s", descr, is_managed_by_hub);
+            builder.add_from_resource("/network/golem/gu-provider-ui-linux/window.glade");
+            main_window = builder.get_object("main_window") as Window;
+            add_hub_window = builder.get_object("add_hub_window") as Window;
+            menu = builder.get_object("menu") as Gtk.Menu;
+            hub_list_model = builder.get_object("hub_list_model") as Gtk.ListStore;
+            auto_mode = builder.get_object("auto_mode") as Gtk.ToggleButton;
+            add_hub_ip = builder.get_object("add_hub_ip") as Gtk.Entry;
+            add_hub_port = builder.get_object("add_hub_port") as Gtk.Entry;
+            add_hub_info = builder.get_object("add_hub_info") as Gtk.TextView;
+            provider_status = builder.get_object("provider_status") as Gtk.Label;
+            builder.connect_signals(null);
+        } catch (GLib.Error e) {
+            stderr.printf("Error while loading GUI: %s\n", e.message);
+            Process.exit(1);
+        }
+
+        indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
+        indicator.set_icon("golemu-red");
+        indicator.set_status(IndicatorStatus.ACTIVE);
+        indicator.set_menu(menu);
+
+        /* check auto/manual mode */
+        string is_provider_in_auto_mode;
+        try {
+            Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
         } catch (GLib.Error err) { warning(err.message); }
+        auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
+
+        /* check hub permissions */
+        var json_parser = new Json.Parser();
+        string cli_hub_info;
+        try {
+            Process.spawn_command_line_sync (GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
+        } catch (GLib.Error err) { warning(err.message); }
+        stdout.printf(cli_hub_info);
+        try {
+            json_parser.load_from_data(cli_hub_info, -1);
+        } catch (GLib.Error err) { warning(err.message); }
+        var answer = json_parser.get_root().get_array();
+        foreach (var node in answer.get_elements()) {
+            Json.Object obj = node.get_object();
+            string descr = obj.get_string_member("Description");
+            if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
+            TreeIter iter;
+            hub_list_model.append(out iter);
+            hub_list_model.set(iter, 0, false);
+            hub_list_model.set(iter, 1, obj.get_string_member("Host name"));
+            hub_list_model.set(iter, 2, obj.get_string_member("Addresses"));
+            hub_list_model.set(iter, 3, descr);
+            try {
+                string is_managed_by_hub;
+                Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
+                hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
+                stdout.printf("%s %s", descr, is_managed_by_hub);
+            } catch (GLib.Error err) { warning(err.message); }
+        }
+
+        /* periodically check provider status */
+        GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
+
+        /* uncomment to turn on mdns discovery of hub nodes */
+        /* find_hubs_using_avahi(); */
+
+        /* show main window if the config file does not exists, i.e. the app was launched for the first time */
+        add_window(main_window);
+        bool config_exists = false;
+        string config_file_path = GLib.Path.build_filename(GLib.Environment.get_user_config_dir(), CONFIG_FILE_NAME);
+        KeyFile config_file = new KeyFile();
+        try { if (config_file.load_from_file(config_file_path, NONE)) config_exists = true; } catch (GLib.Error err) {}
+        if (!config_exists) {
+            try { config_file.save_to_file(config_file_path); } catch (GLib.Error err) { warning(err.message); }
+            main_window.show_all();
+        }
     }
-
-    /* periodically check provider status */
-    GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
-
-    /* uncomment to turn on mdns discovery of hub nodes */
-    /* find_hubs_using_avahi(); */
-
-    /* show main window if the config file does not exists, i.e. the app was launched for the first time */
-    bool config_exists = false;
-    string config_file_path = GLib.Path.build_filename(GLib.Environment.get_user_config_dir(), CONFIG_FILE_NAME);
-    KeyFile config_file = new KeyFile();
-    try { if (config_file.load_from_file(config_file_path, NONE)) config_exists = true; } catch (GLib.Error err) {}
-    if (!config_exists) {
-        try { config_file.save_to_file(config_file_path); } catch (GLib.Error err) { warning(err.message); }
-        main_window.show_all();
+    protected override void activate() {
+        if (num_launched > 0) main_window.show_all();
+        ++num_launched;
     }
-    Gtk.main();
-    return 0;
+    public static int main(string[] args) {
+        GUProviderUI provider_ui = new GUProviderUI();
+        return provider_ui.run(args);
+    }
 }
