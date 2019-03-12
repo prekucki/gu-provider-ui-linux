@@ -42,6 +42,50 @@ public void on_exit_menu_activate(Gtk.MenuItem menu) {
     Process.exit(0);
 }
 
+public void on_refresh_hub_list(Gtk.Button button) {
+    reload_hub_list();
+}
+
+void reload_hub_list() {
+    hub_list_model.clear();
+
+    /* check auto/manual mode */
+    string is_provider_in_auto_mode;
+    try {
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
+    } catch (GLib.Error err) { warning(err.message); }
+    auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
+
+    /* check hub permissions */
+    var json_parser = new Json.Parser();
+    string cli_hub_info;
+    try {
+        Process.spawn_command_line_sync (GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
+    } catch (GLib.Error err) { warning(err.message); }
+    //stdout.printf(cli_hub_info);
+    try {
+        json_parser.load_from_data(cli_hub_info, -1);
+    } catch (GLib.Error err) { warning(err.message); }
+    var answer = json_parser.get_root().get_array();
+    foreach (var node in answer.get_elements()) {
+        Json.Object obj = node.get_object();
+        string descr = obj.get_string_member("Description");
+        if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
+        TreeIter iter;
+        hub_list_model.append(out iter);
+        hub_list_model.set(iter, 0, false);
+        hub_list_model.set(iter, 1, obj.get_string_member("Host name"));
+        hub_list_model.set(iter, 2, obj.get_string_member("Addresses"));
+        hub_list_model.set(iter, 3, descr);
+        try {
+            string is_managed_by_hub;
+            Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
+            hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
+            //stdout.printf("%s %s", descr, is_managed_by_hub);
+        } catch (GLib.Error err) { warning(err.message); }
+    }
+}
+
 public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     TreeIter iter;
     bool new_val = !toggle.active;
@@ -165,47 +209,13 @@ public class GUProviderUI : Gtk.Application {
         indicator.set_status(IndicatorStatus.ACTIVE);
         indicator.set_menu(menu);
 
-        /* check auto/manual mode */
-        string is_provider_in_auto_mode;
-        try {
-            Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
-        } catch (GLib.Error err) { warning(err.message); }
-        auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
-
-        /* check hub permissions */
-        var json_parser = new Json.Parser();
-        string cli_hub_info;
-        try {
-            Process.spawn_command_line_sync (GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
-        } catch (GLib.Error err) { warning(err.message); }
-        stdout.printf(cli_hub_info);
-        try {
-            json_parser.load_from_data(cli_hub_info, -1);
-        } catch (GLib.Error err) { warning(err.message); }
-        var answer = json_parser.get_root().get_array();
-        foreach (var node in answer.get_elements()) {
-            Json.Object obj = node.get_object();
-            string descr = obj.get_string_member("Description");
-            if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
-            TreeIter iter;
-            hub_list_model.append(out iter);
-            hub_list_model.set(iter, 0, false);
-            hub_list_model.set(iter, 1, obj.get_string_member("Host name"));
-            hub_list_model.set(iter, 2, obj.get_string_member("Addresses"));
-            hub_list_model.set(iter, 3, descr);
-            try {
-                string is_managed_by_hub;
-                Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
-                hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-                stdout.printf("%s %s", descr, is_managed_by_hub);
-            } catch (GLib.Error err) { warning(err.message); }
-        }
-
-        /* periodically check provider status */
-        GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
+        reload_hub_list();
 
         /* uncomment to turn on mdns discovery of hub nodes */
         /* find_hubs_using_avahi(); */
+
+        /* periodically check provider status */
+        GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
 
         /* show main window if the config file does not exists, i.e. the app was launched for the first time */
         add_window(main_window);
