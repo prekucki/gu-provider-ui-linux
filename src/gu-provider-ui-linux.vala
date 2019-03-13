@@ -1,6 +1,7 @@
 using AppIndicator;
 using Gtk;
 using GLib;
+using Gee;
 using Soup;
 using Json;
 using Avahi;
@@ -11,7 +12,7 @@ Gtk.Menu menu;
 Gtk.ListStore hub_list_model;
 Gtk.ToggleButton auto_mode;
 Avahi.Client avahi_client;
-List<Avahi.ServiceResolver> avahi_resolvers;
+GLib.List<Avahi.ServiceResolver> avahi_resolvers;
 Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
@@ -56,14 +57,14 @@ void reload_hub_list() {
     } catch (GLib.Error err) { warning(err.message); }
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
 
-    /* check hub permissions */
     var json_parser = new Json.Parser();
     string cli_hub_info;
+
+    HashSet<string> all_hubs = new HashSet<string>();
+
+    /* hubs in the lan and their permissions */
     try {
-        Process.spawn_command_line_sync (GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
-    } catch (GLib.Error err) { warning(err.message); }
-    //stdout.printf(cli_hub_info);
-    try {
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
         json_parser.load_from_data(cli_hub_info, -1);
     } catch (GLib.Error err) { warning(err.message); }
     var answer = json_parser.get_root().get_array();
@@ -81,8 +82,35 @@ void reload_hub_list() {
             string is_managed_by_hub;
             Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
             hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
+            all_hubs.add(descr);
             //stdout.printf("%s %s", descr, is_managed_by_hub);
         } catch (GLib.Error err) { warning(err.message); }
+    }
+
+    /* saved hubs and their permissions */
+    try {
+        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -l", out cli_hub_info, null, null);
+        json_parser.load_from_data(cli_hub_info, -1);
+    } catch (GLib.Error err) { warning(err.message); }
+    var saved_hubs = json_parser.get_root().get_array();
+    foreach (var node in saved_hubs.get_elements()) {
+        Json.Object obj = node.get_object();
+        string node_id = obj.get_string_member("node_id");
+        if (!all_hubs.contains(node_id)) {
+            TreeIter iter;
+            hub_list_model.append(out iter);
+            hub_list_model.set(iter, 0, false);
+            hub_list_model.set(iter, 1, obj.get_string_member("host_name"));
+            hub_list_model.set(iter, 2, obj.get_string_member("address"));
+            hub_list_model.set(iter, 3, node_id);
+            all_hubs.add(node_id);
+            try {
+                string is_managed_by_hub;
+                Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + node_id, out is_managed_by_hub, null, null);
+                hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
+                //stdout.printf("%s %s", descr, is_managed_by_hub);
+            } catch (GLib.Error err) { warning(err.message); }
+        }
     }
 }
 
@@ -90,12 +118,14 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     TreeIter iter;
     bool new_val = !toggle.active;
     hub_list_model.get_iter(out iter, new TreePath.from_string(path));
-    GLib.Value node_id, ip_port;
+    GLib.Value node_id, ip_port, host_name;
+    hub_list_model.get_value(iter, 1, out host_name);
     hub_list_model.get_value(iter, 2, out ip_port);
     hub_list_model.get_value(iter, 3, out node_id);
     try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (new_val ? "a" : "d")
-            + " " + (string)node_id + " " + (string)ip_port, null, null, null);
+        Process.spawn_sync( null,
+            { GU_PROVIDER_PATH, "configure", new_val ? "-a" : "-d", (string)node_id, (string)ip_port, (string)host_name },
+            null, SpawnFlags.SEARCH_PATH, null, null, null);
         hub_list_model.set(iter, 0, new_val);
     } catch (GLib.Error err) { warning(err.message); }
 }
@@ -148,7 +178,8 @@ public void on_found_new_node(Interface @interface, Protocol protocol, string na
             hub_list_model.set(iter, 3, (string)val);
             try {
                 string is_managed_by_hub;
-                Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g " + (string)val, out is_managed_by_hub, null, null);
+                Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g "
+                    + (string)val, out is_managed_by_hub, null, null);
                 hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
                 //stdout.printf("%s %s", (string)val, is_managed_by_hub);
             } catch (GLib.Error err) { warning(err.message); }
@@ -171,7 +202,7 @@ public void on_new_avahi_service (Interface @interface, Protocol protocol, strin
 void find_hubs_using_avahi() {
     avahi_service_browser = new ServiceBrowser("_gu_hub._tcp");
     avahi_service_browser.new_service.connect(on_new_avahi_service);
-    avahi_resolvers = new List<ServiceResolver>();
+    avahi_resolvers = new GLib.List<ServiceResolver>();
     avahi_client = new Client();
     try {
         avahi_client.start();
