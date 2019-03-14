@@ -30,7 +30,7 @@ public bool on_update_status() {
         string ret;
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " server status", out ret, null, null);
         indicator.set_icon(ret.index_of("is running") != -1 ? "golemu" : "golemu-red");
-        provider_status.set_text("Status: " + ret.strip());
+        provider_status.set_text("GU Provider Status: " + ret.strip());
     } catch (GLib.Error err) { warning(err.message); }
     return true;
 }
@@ -83,7 +83,6 @@ void reload_hub_list() {
             Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
             hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
             all_hubs.add(descr);
-            //stdout.printf("%s %s", descr, is_managed_by_hub);
         } catch (GLib.Error err) { warning(err.message); }
     }
 
@@ -108,7 +107,6 @@ void reload_hub_list() {
                 string is_managed_by_hub;
                 Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + node_id, out is_managed_by_hub, null, null);
                 hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-                //stdout.printf("%s %s", descr, is_managed_by_hub);
             } catch (GLib.Error err) { warning(err.message); }
         }
     }
@@ -144,10 +142,21 @@ void show_message(Window window, string message) {
 
 public bool add_new_hub(Gtk.Button button) {
     var session = new Soup.Session();
-    var message = new Soup.Message("GET", "http://" + add_hub_ip.text + ":" + add_hub_port.text + "/node_id/");
+    InetAddress ip = new InetAddress.from_string(add_hub_ip.text);
+    if (ip == null) { show_message(add_hub_window, "Please enter a valid IP address."); return true; }
+    string ip_port = add_hub_ip.text + ":" + add_hub_port.text;
+    var message = new Soup.Message("GET", "http://" + ip_port + "/node_id/");
     if (session.send_message(message) != 200) { show_message(add_hub_window, "Cannot connect to " + add_hub_ip.text + "."); return true; }
     string[] hub_info = ((string)message.response_body.data).split(" ");
-    add_hub_info.buffer.text = "Adding " + hub_info[1] + " with node ID " + hub_info[0] + ".";
+    add_hub_info.buffer.text = "Adding " + hub_info[1] + " with node ID " + hub_info[0] + ".\n";
+    try {
+        Process.spawn_sync( null,
+            { GU_PROVIDER_PATH, "configure", "-a", hub_info[0], (string)ip_port, hub_info[1] },
+            null, SpawnFlags.SEARCH_PATH, null, null, null);
+    } catch (GLib.Error err) { warning(err.message); }
+    reload_hub_list();
+    add_hub_info.buffer.text = add_hub_ip.text = add_hub_port.text = "";
+    add_hub_window.hide();
     return true;
 }
 
@@ -164,7 +173,6 @@ public bool on_window_delete_event(Gtk.Window window) {
 public void on_found_new_node(Interface @interface, Protocol protocol, string name, string type, string domain, string hostname, Avahi.Address? address, uint16 port, StringList? txt) {
     if (protocol == Protocol.INET) {
         string ip_str = address.to_string();
-        //stdout.printf("New node: %s / %s / %s / %s / %s / %s\n", name, type, domain, hostname, ip_str, protocol.to_string());
         TreeIter iter;
         hub_list_model.append(out iter);
         hub_list_model.set(iter, 1, hostname);
@@ -181,7 +189,6 @@ public void on_found_new_node(Interface @interface, Protocol protocol, string na
                 Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g "
                     + (string)val, out is_managed_by_hub, null, null);
                 hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-                //stdout.printf("%s %s", (string)val, is_managed_by_hub);
             } catch (GLib.Error err) { warning(err.message); }
         } else {
             hub_list_model.set(iter, 3, "");
