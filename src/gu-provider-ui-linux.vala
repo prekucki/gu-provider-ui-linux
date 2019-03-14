@@ -16,7 +16,6 @@ GLib.List<Avahi.ServiceResolver> avahi_resolvers;
 Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
-Gtk.TextView add_hub_info;
 Gtk.Label provider_status;
 
 ServiceBrowser avahi_service_browser;
@@ -140,6 +139,11 @@ void show_message(Window window, string message) {
     dialog.show();
 }
 
+public bool cancel_add_hub(Gtk.Button button) {
+    add_hub_window.hide();
+    return true;
+}
+
 public bool add_new_hub(Gtk.Button button) {
     var session = new Soup.Session();
     InetAddress ip = new InetAddress.from_string(add_hub_ip.text);
@@ -148,14 +152,13 @@ public bool add_new_hub(Gtk.Button button) {
     var message = new Soup.Message("GET", "http://" + ip_port + "/node_id/");
     if (session.send_message(message) != 200) { show_message(add_hub_window, "Cannot connect to " + add_hub_ip.text + "."); return true; }
     string[] hub_info = ((string)message.response_body.data).split(" ");
-    add_hub_info.buffer.text = "Adding " + hub_info[1] + " with node ID " + hub_info[0] + ".\n";
     try {
         Process.spawn_sync( null,
             { GU_PROVIDER_PATH, "configure", "-a", hub_info[0], (string)ip_port, hub_info[1] },
             null, SpawnFlags.SEARCH_PATH, null, null, null);
-    } catch (GLib.Error err) { warning(err.message); }
+    } catch (GLib.Error err) { show_message(add_hub_window, err.message); }
+    add_hub_ip.text = "";
     reload_hub_list();
-    add_hub_info.buffer.text = add_hub_ip.text = add_hub_port.text = "";
     add_hub_window.hide();
     return true;
 }
@@ -234,7 +237,6 @@ public class GUProviderUI : Gtk.Application {
             auto_mode = builder.get_object("auto_mode") as Gtk.ToggleButton;
             add_hub_ip = builder.get_object("add_hub_ip") as Gtk.Entry;
             add_hub_port = builder.get_object("add_hub_port") as Gtk.Entry;
-            add_hub_info = builder.get_object("add_hub_info") as Gtk.TextView;
             provider_status = builder.get_object("provider_status") as Gtk.Label;
             builder.connect_signals(null);
         } catch (GLib.Error e) {
