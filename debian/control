@@ -1,0 +1,14 @@
+Source: gu-provider-ui-linux
+Section: x11
+Priority: optional
+Maintainer: Przemysław K. Rekucki <przemyslaw.rekucki@golem.network>
+Build-Depends: debhelper (>= 10)
+Standards-Version: 4.1.2
+Homepage:http://golem.network/
+#Vcs-Git: https://anonscm.debian.org/git/collab-maint/gu-provider-ui-linux.git
+#Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/gu-provider-ui-linux.git
+
+Package: gu-provider-ui-linux
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Golem-Unlimited provider UI
