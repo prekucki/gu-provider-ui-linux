@@ -20,7 +20,7 @@ Gtk.Label provider_status;
 
 ServiceBrowser avahi_service_browser;
 
-const string GU_PROVIDER_PATH = "/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider";
+const string GU_PROVIDER_PATH = "gu-provider"; // ~/Documents/golem-unlimited/target/debug/
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 
@@ -54,7 +54,9 @@ void reload_hub_list() {
     try {
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
     } catch (GLib.Error err) { warning(err.message); }
+    GLib.SignalHandler.block_by_func(auto_mode, null, null);
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
+    GLib.SignalHandler.unblock_by_func(auto_mode, null, null);
 
     var json_parser = new Json.Parser();
     string cli_hub_info;
@@ -120,17 +122,31 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     hub_list_model.get_value(iter, 2, out ip_port);
     hub_list_model.get_value(iter, 3, out node_id);
     try {
-        Process.spawn_sync( null,
+        Process.spawn_sync(null,
             { GU_PROVIDER_PATH, "configure", new_val ? "-a" : "-d", (string)node_id, (string)ip_port, (string)host_name },
             null, SpawnFlags.SEARCH_PATH, null, null, null);
         hub_list_model.set(iter, 0, new_val);
     } catch (GLib.Error err) { warning(err.message); }
+    try {
+        Process.spawn_sync(null,
+            { GU_PROVIDER_PATH, "hubs", new_val ? "connect" : "disconnect", (string)ip_port },
+            null, SpawnFlags.SEARCH_PATH, null, null, null);
+    } catch (GLib.Error err) {
+        warning(err.message);
+    }
 }
 
 public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
     try {
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "A" : "D"), null, null, null);
     } catch (GLib.Error err) { warning(err.message); }
+    try {
+        Process.spawn_sync(null,
+            { GU_PROVIDER_PATH, "hubs", auto_mode.active ? "auto" : "manual" },
+            null, SpawnFlags.SEARCH_PATH, null, null, null);
+    } catch (GLib.Error err) {
+        warning(err.message);
+    }
 }
 
 void show_message(Window window, string message) {

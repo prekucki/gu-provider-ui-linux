@@ -194,6 +194,7 @@
   <object class="GtkWindow" id="add_hub_window">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Add Other Hub</property>
+    <property name="resizable">False</property>
     <property name="modal">True</property>
     <property name="default_width">500</property>
     <property name="type_hint">dialog</property>
@@ -316,7 +317,7 @@
             </child>
             <child>
               <object class="GtkButton" id="add_hub_button">
-                <property name="label" translatable="yes">_Add Hub</property>
+                <property name="label">gtk-add</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
@@ -324,6 +325,8 @@
                 <property name="margin_right">10</property>
                 <property name="margin_bottom">10</property>
                 <property name="use_underline">True</property>
+                <property name="use_stock">True</property>
+                <property name="always_show_image">True</property>
                 <signal name="clicked" handler="add_new_hub" swapped="no"/>
               </object>
               <packing>
