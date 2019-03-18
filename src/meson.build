@@ -9,7 +9,7 @@ cfg_gu_provider_ui_linux.set('TESTSRCDIR', meson.source_root())
 
 cfgfile_1 = configure_file(input: 'Config.vala.base',output: 'Config.vala',configuration: cfg_gu_provider_ui_linux)
 
-gu_provider_ui_linux_deps = [appindicator_0_1_dep, atk_dep, avahi_gobject_dep, avahi_client_dep, cairo_dep, gdk_3_0_dep, gdk_pixbuf_2_0_dep, gee_dep, gio_2_0_dep, glib_2_0_dep, gobject_2_0_dep, gtk_3_0_dep, json_dep, pango_dep, soup_dep, x11_dep]
+gu_provider_ui_linux_deps = [appindicator_0_1_dep, atk_dep, cairo_dep, gdk_3_0_dep, gdk_pixbuf_2_0_dep, gee_dep, gio_2_0_dep, glib_2_0_dep, gobject_2_0_dep, gtk_3_0_dep, json_dep, pango_dep, soup_dep, x11_dep]
 gu_provider_ui_linux_sources = [cfgfile_1, 'gu-provider-ui-linux.vala']
 gu_provider_ui_linux_link_args = ['-rdynamic']
 
