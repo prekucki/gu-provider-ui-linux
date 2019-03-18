@@ -54,9 +54,9 @@ void reload_hub_list() {
     try {
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
     } catch (GLib.Error err) { warning(err.message); }
-    GLib.SignalHandler.block_by_func(auto_mode, null, null);
+    GLib.SignalHandler.block_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
-    GLib.SignalHandler.unblock_by_func(auto_mode, null, null);
+    GLib.SignalHandler.unblock_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
 
     var json_parser = new Json.Parser();
     string cli_hub_info;
