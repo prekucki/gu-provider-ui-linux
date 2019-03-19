@@ -4,21 +4,16 @@ using GLib;
 using Gee;
 using Soup;
 using Json;
-using Avahi;
 
 Window main_window;
 Window add_hub_window;
 Gtk.Menu menu;
 Gtk.ListStore hub_list_model;
 Gtk.ToggleButton auto_mode;
-Avahi.Client avahi_client;
-GLib.List<Avahi.ServiceResolver> avahi_resolvers;
 Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
 Gtk.Label provider_status;
-
-ServiceBrowser avahi_service_browser;
 
 const string GU_PROVIDER_PATH = "gu-provider"; // ~/Documents/golem-unlimited/target/debug/
 const int CHECK_STATUS_EVERY_MS = 1000;
@@ -54,9 +49,9 @@ void reload_hub_list() {
     try {
         Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
     } catch (GLib.Error err) { warning(err.message); }
-    GLib.SignalHandler.block_by_func(auto_mode, null, null);
+    GLib.SignalHandler.block_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
-    GLib.SignalHandler.unblock_by_func(auto_mode, null, null);
+    GLib.SignalHandler.unblock_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
 
     var json_parser = new Json.Parser();
     string cli_hub_info;
@@ -187,53 +182,6 @@ public bool show_add_hub_window(Gtk.Button button) {
 public bool on_window_delete_event(Gtk.Window window) {
     window.hide();
     return true;
-}
-
-public void on_found_new_node(Interface @interface, Protocol protocol, string name, string type, string domain, string hostname, Avahi.Address? address, uint16 port, StringList? txt) {
-    if (protocol == Protocol.INET) {
-        string ip_str = address.to_string();
-        TreeIter iter;
-        hub_list_model.append(out iter);
-        hub_list_model.set(iter, 1, hostname);
-        string ip_port = protocol == Protocol.INET6 ? ("[" + ip_str + "]" + ":" + port.to_string()) : (ip_str + ":" + port.to_string());
-        hub_list_model.set(iter, 2, ip_port);
-        txt = txt.find("node_id");
-        if (txt != null) {
-            string key;
-            char[] val;
-            txt.get_pair(out key, out val);
-            hub_list_model.set(iter, 3, (string)val);
-            try {
-                string is_managed_by_hub;
-                Process.spawn_command_line_sync("/home/golem-user/Documents/golem-unlimited/target/debug/gu-provider configure -g "
-                    + (string)val, out is_managed_by_hub, null, null);
-                hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-            } catch (GLib.Error err) { warning(err.message); }
-        } else {
-            hub_list_model.set(iter, 3, "");
-        }
-    }
-}
-
-public void on_new_avahi_service (Interface @interface, Protocol protocol, string name, string type, string domain, LookupResultFlags flags) {
-    ServiceResolver resolver = new ServiceResolver(Interface.UNSPEC, protocol, name, type, domain, protocol);
-    resolver.found.connect(on_found_new_node);
-    resolver.failure.connect((err) => { warning(err.message); });
-    try {
-        resolver.attach(avahi_client);
-        avahi_resolvers.append(resolver);
-    } catch (Avahi.Error err) { warning(err.message); }
-}
-
-void find_hubs_using_avahi() {
-    avahi_service_browser = new ServiceBrowser("_gu_hub._tcp");
-    avahi_service_browser.new_service.connect(on_new_avahi_service);
-    avahi_resolvers = new GLib.List<ServiceResolver>();
-    avahi_client = new Client();
-    try {
-        avahi_client.start();
-        avahi_service_browser.attach(avahi_client);
-    } catch (Avahi.Error err) { warning(err.message); }
 }
 
 public class GUProviderUI : Gtk.Application {
