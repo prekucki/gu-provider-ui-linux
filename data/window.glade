@@ -131,7 +131,7 @@
                 </child>
                 <child>
                   <object class="GtkTreeViewColumn">
-                    <property name="title" translatable="yes">Name</property>
+                    <property name="title" translatable="yes">Hub Name</property>
                     <child>
                       <object class="GtkCellRendererText" id="name"/>
                       <attributes>
