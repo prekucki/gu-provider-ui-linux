@@ -14,17 +14,44 @@ Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
 Gtk.Label provider_status;
+string unixSocketPath;
 
 const string GU_PROVIDER_PATH = "gu-provider"; // ~/Documents/golem-unlimited/target/debug/
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 
-public bool on_update_status() {
+public string? requestHTTPFromUnixSocket(string path, string method, string query) {
     try {
-        string ret;
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " server status", out ret, null, null);
-        indicator.set_icon(ret.index_of("is running") != -1 ? "golemu" : "golemu-red");
-        provider_status.set_text("GU Provider Status: " + ret.strip());
+        var client = new SocketClient();
+        var connection = client.connect(new UnixSocketAddress(path));
+        connection.output_stream.write((method + " " + query + " HTTP/1.0\r\n\r\n").data);
+        DataInputStream response = new DataInputStream(connection.input_stream);
+        string result = "";
+        while (true) {
+            string str = response.read_line(null);
+            if (str == null) break;
+            result = result + str + "\n";
+        }
+        return result;
+    } catch (GLib.Error err) {
+        return null;
+    }
+}
+
+public string? getHTTPBodyFromUnixSocket(string path, string method, string query) {
+    var response = requestHTTPFromUnixSocket(path, method, query);
+    if (response == null) return null;
+    return response.split("\r\n\r\n", 2)[1];
+}
+
+public bool on_update_status() {
+    var status = getHTTPBodyFromUnixSocket(unixSocketPath, "GET", "/status?timeout=5");
+    var json_parser = new Json.Parser();
+    try {
+        json_parser.load_from_data(status, -1);
+        var env = json_parser.get_root().get_object().get_object_member("envs").get_string_member("hostDirect");
+        indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
+        provider_status.set_text("GU Provider Status: " + env);
     } catch (GLib.Error err) { warning(err.message); }
     return true;
 }
@@ -212,6 +239,8 @@ public class GUProviderUI : Gtk.Application {
         indicator.set_icon("golemu-red");
         indicator.set_status(IndicatorStatus.ACTIVE);
         indicator.set_menu(menu);
+
+        unixSocketPath = "/tmp/gu-provider.socket";
 
         reload_hub_list();
 
