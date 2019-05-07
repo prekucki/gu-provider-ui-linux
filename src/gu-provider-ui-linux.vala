@@ -86,8 +86,9 @@ void reload_hub_list() {
     HashSet<string> all_hubs = new HashSet<string>();
 
     /* hubs in the lan and their permissions */
+
     try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " --json lan list -I hub", out cli_hub_info, null, null);
+        cli_hub_info = getHTTPBodyFromUnixSocket(unixSocketPath, "GET", "/lan/list");
         json_parser.load_from_data(cli_hub_info, -1);
     } catch (GLib.Error err) { warning(err.message); }
     var answer = json_parser.get_root().get_array();
