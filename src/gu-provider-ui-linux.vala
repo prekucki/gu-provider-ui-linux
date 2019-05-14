@@ -20,7 +20,7 @@ const string GU_PROVIDER_PATH = "gu-provider"; // ~/Documents/golem-unlimited/ta
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 
-public string? requestHTTPFromUnixSocket(string path, string method, string query) {
+public string? requestHTTPFromUnixSocket(string path, string method, string query, string body) {
     try {
         var client = new SocketClient();
         var connection = client.connect(new UnixSocketAddress(path));
@@ -38,14 +38,14 @@ public string? requestHTTPFromUnixSocket(string path, string method, string quer
     }
 }
 
-public string? getHTTPBodyFromUnixSocket(string path, string method, string query) {
-    var response = requestHTTPFromUnixSocket(path, method, query);
+public string? getHTTPResultFromUnixSocket(string path, string method, string query, string body) {
+    var response = requestHTTPFromUnixSocket(path, method, query, body);
     if (response == null) return null;
     return response.split("\r\n\r\n", 2)[1];
 }
 
 public bool on_update_status() {
-    var status = getHTTPBodyFromUnixSocket(unixSocketPath, "GET", "/status?timeout=5");
+    var status = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/status?timeout=5", "");
     var json_parser = new Json.Parser();
     try {
         json_parser.load_from_data(status, -1);
@@ -73,9 +73,7 @@ void reload_hub_list() {
 
     /* check auto/manual mode */
     string is_provider_in_auto_mode;
-    try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g auto", out is_provider_in_auto_mode, null, null);
-    } catch (GLib.Error err) { warning(err.message); }
+    is_provider_in_auto_mode = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/auto", "");
     GLib.SignalHandler.block_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
     GLib.SignalHandler.unblock_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
@@ -88,7 +86,7 @@ void reload_hub_list() {
     /* hubs in the lan and their permissions */
 
     try {
-        cli_hub_info = getHTTPBodyFromUnixSocket(unixSocketPath, "GET", "/lan/list");
+        cli_hub_info = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/lan/list", "");
         json_parser.load_from_data(cli_hub_info, -1);
     } catch (GLib.Error err) { warning(err.message); }
     var answer = json_parser.get_root().get_array();
@@ -102,17 +100,15 @@ void reload_hub_list() {
         hub_list_model.set(iter, 1, obj.get_string_member("Host name"));
         hub_list_model.set(iter, 2, obj.get_string_member("Addresses"));
         hub_list_model.set(iter, 3, descr);
-        try {
-            string is_managed_by_hub;
-            Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + (string)descr, out is_managed_by_hub, null, null);
-            hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-            all_hubs.add(descr);
-        } catch (GLib.Error err) { warning(err.message); }
+        string is_managed_by_hub;
+        is_managed_by_hub = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/" + (string)descr, "");
+        hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
+        all_hubs.add(descr);
     }
 
     /* saved hubs and their permissions */
     try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -l", out cli_hub_info, null, null);
+        cli_hub_info = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes?saved", "");
         json_parser.load_from_data(cli_hub_info, -1);
     } catch (GLib.Error err) { warning(err.message); }
     var saved_hubs = json_parser.get_root().get_array();
@@ -127,11 +123,8 @@ void reload_hub_list() {
             hub_list_model.set(iter, 2, obj.get_string_member("address"));
             hub_list_model.set(iter, 3, node_id);
             all_hubs.add(node_id);
-            try {
-                string is_managed_by_hub;
-                Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -g " + node_id, out is_managed_by_hub, null, null);
-                hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-            } catch (GLib.Error err) { warning(err.message); }
+            string is_managed_by_hub = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/" + node_id, "");
+            hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
         }
     }
 }
@@ -144,32 +137,15 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     hub_list_model.get_value(iter, 1, out host_name);
     hub_list_model.get_value(iter, 2, out ip_port);
     hub_list_model.get_value(iter, 3, out node_id);
-    try {
-        Process.spawn_sync(null,
-            { GU_PROVIDER_PATH, "configure", new_val ? "-a" : "-d", (string)node_id, (string)ip_port, (string)host_name },
-            null, SpawnFlags.SEARCH_PATH, null, null, null);
-        hub_list_model.set(iter, 0, new_val);
-    } catch (GLib.Error err) { warning(err.message); }
-    try {
-        Process.spawn_sync(null,
-            { GU_PROVIDER_PATH, "hubs", new_val ? "connect" : "disconnect", (string)ip_port },
-            null, SpawnFlags.SEARCH_PATH, null, null, null);
-    } catch (GLib.Error err) {
-        warning(err.message);
-    }
+    getHTTPResultFromUnixSocket(unixSocketPath, new_val ? "PUT" : "DELETE",
+        "/nodes/" + (string)node_id, json_for_address_and_host_name((string)ip_port, (string)host_name));
+    hub_list_model.set(iter, 0, new_val);
+    getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/connections/" + (new_val ? "connect" : "disconnect") + "?save=1", "[" + (string)ip_port + "]");
 }
 
 public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
-    try {
-        Process.spawn_command_line_sync(GU_PROVIDER_PATH + " configure -" + (auto_mode.active ? "A" : "D"), null, null, null);
-    } catch (GLib.Error err) { warning(err.message); }
-    try {
-        Process.spawn_sync(null,
-            { GU_PROVIDER_PATH, "hubs", auto_mode.active ? "auto" : "manual" },
-            null, SpawnFlags.SEARCH_PATH, null, null, null);
-    } catch (GLib.Error err) {
-        warning(err.message);
-    }
+    getHTTPResultFromUnixSocket(unixSocketPath, auto_mode.active ? "PUT" : "DELETE", "/nodes/auto", "{}");
+    getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/connections/mode/" + (auto_mode.active ? "auto" : "manual") + "?save=1", "");
 }
 
 void show_message(Window window, string message) {
@@ -183,6 +159,19 @@ public bool cancel_add_hub(Gtk.Button button) {
     return true;
 }
 
+public string json_for_address_and_host_name(string address, string host_name) {
+    Json.Builder b = new Json.Builder();
+    b.begin_object();
+    b.set_member_name("address");
+    b.add_string_value(address);
+    b.set_member_name("hostName");
+    b.add_string_value(host_name);
+    b.end_object();
+    Json.Generator g = new Json.Generator();
+    g.set_root(b.get_root());
+    return g.to_data(null);
+}
+
 public bool add_new_hub(Gtk.Button button) {
     var session = new Soup.Session();
     InetAddress ip = new InetAddress.from_string(add_hub_ip.text);
@@ -191,11 +180,7 @@ public bool add_new_hub(Gtk.Button button) {
     var message = new Soup.Message("GET", "http://" + ip_port + "/node_id/");
     if (session.send_message(message) != 200) { show_message(add_hub_window, "Cannot connect to " + add_hub_ip.text + "."); return true; }
     string[] hub_info = ((string)message.response_body.data).split(" ");
-    try {
-        Process.spawn_sync( null,
-            { GU_PROVIDER_PATH, "configure", "-a", hub_info[0], (string)ip_port, hub_info[1] },
-            null, SpawnFlags.SEARCH_PATH, null, null, null);
-    } catch (GLib.Error err) { show_message(add_hub_window, err.message); }
+    getHTTPResultFromUnixSocket(unixSocketPath, "PUT", "/nodes/" + hub_info[0], json_for_address_and_host_name(ip_port, hub_info[1]));
     add_hub_ip.text = "";
     reload_hub_list();
     add_hub_window.hide();
