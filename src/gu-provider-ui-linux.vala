@@ -1,7 +1,6 @@
 using AppIndicator;
 using Gtk;
 using GLib;
-using Gee;
 using Soup;
 using Json;
 
@@ -24,7 +23,12 @@ public string? requestHTTPFromUnixSocket(string path, string method, string quer
     try {
         var client = new SocketClient();
         var connection = client.connect(new UnixSocketAddress(path));
-        connection.output_stream.write((method + " " + query + " HTTP/1.0\r\n\r\n").data);
+        var additional_headers = "";
+        if (body != "") {
+            additional_headers += "Content-length: " + body.data.length.to_string() + "\r\n";
+            additional_headers += "Content-type: application/json\r\n";
+        }
+        connection.output_stream.write((method + " " + query + " HTTP/1.0\r\n" + additional_headers + "\r\n" + body).data);
         DataInputStream response = new DataInputStream(connection.input_stream);
         string result = "";
         while (true) {
@@ -46,13 +50,14 @@ public string? getHTTPResultFromUnixSocket(string path, string method, string qu
 
 public bool on_update_status() {
     var status = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/status?timeout=5", "");
+    if (status == null) { warning("No answer from the provider (status)."); return true; }
     var json_parser = new Json.Parser();
     try {
         json_parser.load_from_data(status, -1);
         var env = json_parser.get_root().get_object().get_object_member("envs").get_string_member("hostDirect");
         indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
         provider_status.set_text("GU Provider Status: " + env);
-    } catch (GLib.Error err) { warning(err.message); }
+    } catch (GLib.Error err) { warning("No answer or bad answer from the provider: " + err.message); }
     return true;
 }
 
@@ -74,6 +79,7 @@ void reload_hub_list() {
     /* check auto/manual mode */
     string is_provider_in_auto_mode;
     is_provider_in_auto_mode = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/auto", "");
+    if (is_provider_in_auto_mode == null) { warning("No answer from the provider (hub list)."); return; }
     GLib.SignalHandler.block_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
     auto_mode.active = bool.parse(is_provider_in_auto_mode.strip());
     GLib.SignalHandler.unblock_by_func(auto_mode, (void*)on_auto_mode_toggled, null);
@@ -81,7 +87,7 @@ void reload_hub_list() {
     var json_parser = new Json.Parser();
     string cli_hub_info;
 
-    HashSet<string> all_hubs = new HashSet<string>();
+    HashTable<string, bool> all_hubs = new HashTable<string, bool>(str_hash, str_equal);
 
     /* hubs in the lan and their permissions */
 
@@ -103,7 +109,7 @@ void reload_hub_list() {
         string is_managed_by_hub;
         is_managed_by_hub = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/" + (string)descr, "");
         hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
-        all_hubs.add(descr);
+        all_hubs.set(descr, true);
     }
 
     /* saved hubs and their permissions */
@@ -122,7 +128,7 @@ void reload_hub_list() {
             hub_list_model.set(iter, 1, obj.get_string_member("host_name"));
             hub_list_model.set(iter, 2, obj.get_string_member("address"));
             hub_list_model.set(iter, 3, node_id);
-            all_hubs.add(node_id);
+            all_hubs.set(node_id, true);
             string is_managed_by_hub = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/" + node_id, "");
             hub_list_model.set(iter, 0, bool.parse(is_managed_by_hub.strip()));
         }
@@ -139,13 +145,13 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
     hub_list_model.get_value(iter, 3, out node_id);
     getHTTPResultFromUnixSocket(unixSocketPath, new_val ? "PUT" : "DELETE",
         "/nodes/" + (string)node_id, json_for_address_and_host_name((string)ip_port, (string)host_name));
+    getHTTPResultFromUnixSocket(unixSocketPath, "POST", "/connections/" + (new_val ? "connect" : "disconnect") + "?save=1", "[\"" + (string)ip_port + "\"]");
     hub_list_model.set(iter, 0, new_val);
-    getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/connections/" + (new_val ? "connect" : "disconnect") + "?save=1", "[" + (string)ip_port + "]");
 }
 
 public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
     getHTTPResultFromUnixSocket(unixSocketPath, auto_mode.active ? "PUT" : "DELETE", "/nodes/auto", "{}");
-    getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/connections/mode/" + (auto_mode.active ? "auto" : "manual") + "?save=1", "");
+    getHTTPResultFromUnixSocket(unixSocketPath, "POST", "/connections/mode/" + (auto_mode.active ? "auto" : "manual") + "?save=1", "");
 }
 
 void show_message(Window window, string message) {
@@ -229,9 +235,6 @@ public class GUProviderUI : Gtk.Application {
         unixSocketPath = "/tmp/gu-provider.socket";
 
         reload_hub_list();
-
-        /* uncomment to turn on mdns discovery of hub nodes */
-        /* find_hubs_using_avahi(); */
 
         /* periodically check provider status */
         GLib.Timeout.add(CHECK_STATUS_EVERY_MS, on_update_status);
