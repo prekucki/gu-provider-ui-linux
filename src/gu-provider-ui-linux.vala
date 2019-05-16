@@ -15,7 +15,6 @@ Gtk.Entry add_hub_port;
 Gtk.Label provider_status;
 string unixSocketPath;
 
-const string GU_PROVIDER_PATH = "gu-provider"; // ~/Documents/golem-unlimited/target/debug/
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 
