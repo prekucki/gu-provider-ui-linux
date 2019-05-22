@@ -17,7 +17,7 @@ string unixSocketPath;
 
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
-const string SOCKET_PATH_GLOBAL = "/var/run/gu-provider.socket";
+const string SOCKET_PATH_GLOBAL = "/var/run/golemu/gu-provider.socket";
 const string SOCKET_PATH_USER_HOME = ".local/run/golemunlimited/gu-provider.socket";
 
 public string? requestHTTPFromUnixSocket(string path, string method, string query, string body) {
