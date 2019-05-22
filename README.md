@@ -6,7 +6,7 @@ User Interface for Golem Unlimited provider. Displays appindicator in status bar
 
 ```
 
-sudo apt install devscripts meson valac libappindicator3-dev libgee-0.8-dev libsoup2.4-dev libjson-glib-dev libglib2.0-dev
+sudo apt install devscripts meson valac libappindicator3-dev libsoup2.4-dev libjson-glib-dev libglib2.0-dev
 mkdir build_dir
 cd build_dir
 meson ..
