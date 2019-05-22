@@ -17,6 +17,8 @@ string unixSocketPath;
 
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
+const string SOCKET_PATH_GLOBAL = "/var/run/gu-provider.socket";
+const string SOCKET_PATH_USER_HOME = ".local/run/golemunlimited/gu-provider.socket";
 
 public string? requestHTTPFromUnixSocket(string path, string method, string query, string body) {
     try {
@@ -49,14 +51,23 @@ public string? getHTTPResultFromUnixSocket(string path, string method, string qu
 
 public bool on_update_status() {
     var status = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/status?timeout=5", "");
-    if (status == null) { warning("No answer from the provider (status)."); return true; }
-    var json_parser = new Json.Parser();
-    try {
-        json_parser.load_from_data(status, -1);
-        var env = json_parser.get_root().get_object().get_object_member("envs").get_string_member("hostDirect");
-        indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
-        provider_status.set_text("GU Provider Status: " + env);
-    } catch (GLib.Error err) { warning("No answer or bad answer from the provider: " + err.message); }
+    if (status != null) {
+        var json_parser = new Json.Parser();
+        try {
+            json_parser.load_from_data(status, -1);
+            var env = json_parser.get_root().get_object().get_object_member("envs").get_string_member("hostDirect");
+            indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
+            provider_status.set_text("GU Provider Status: " + env);
+        } catch (GLib.Error err) {
+            indicator.set_icon("golemu-red");
+            provider_status.set_text("GU Provider Status: Invalid Answer");
+            warning("Invalid answer from the provider: " + err.message);
+        }
+    } else {
+        indicator.set_icon("golemu-red");
+        provider_status.set_text("GU Provider Status: Cannot Connect");
+        warning("No answer from the provider (status).");
+    }
     return true;
 }
 
@@ -231,7 +242,13 @@ public class GUProviderUI : Gtk.Application {
         indicator.set_status(IndicatorStatus.ACTIVE);
         indicator.set_menu(menu);
 
-        unixSocketPath = "/tmp/gu-provider.socket";
+        var local_path = GLib.Path.build_filename(GLib.Environment.get_home_dir(), SOCKET_PATH_USER_HOME);
+        if (File.new_for_path(local_path).query_exists()) {
+            unixSocketPath = local_path;
+        } else {
+            unixSocketPath = SOCKET_PATH_GLOBAL;
+        }
+        stderr.printf("Using socket: %s\n", unixSocketPath);
 
         reload_hub_list();
 
