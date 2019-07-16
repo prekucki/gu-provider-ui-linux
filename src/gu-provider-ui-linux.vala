@@ -161,7 +161,7 @@ public void on_hub_selected_toggled(CellRendererToggle toggle, string path) {
 
 public void on_auto_mode_toggled(Gtk.ToggleButton auto_mode) {
     getHTTPResultFromUnixSocket(unixSocketPath, auto_mode.active ? "PUT" : "DELETE", "/nodes/auto", "{}");
-    getHTTPResultFromUnixSocket(unixSocketPath, "POST", "/connections/mode/" + (auto_mode.active ? "auto" : "manual") + "?save=1", "");
+    getHTTPResultFromUnixSocket(unixSocketPath, "PUT", "/connections/mode/" + (auto_mode.active ? "auto" : "manual") + "?save=1", "");
 }
 
 void show_message(Window window, string message) {
