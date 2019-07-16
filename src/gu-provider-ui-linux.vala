@@ -109,7 +109,7 @@ void reload_hub_list() {
     foreach (var node in answer.get_elements()) {
         Json.Object obj = node.get_object();
         string descr = obj.get_string_member("Description");
-        if (descr.index_of("node_id=") == 0) descr = descr.substring(8);
+        if (descr.index_of("node_id=") == 0 && descr.length >= 8 + 42) descr = descr.substring(8, 42);
         TreeIter iter;
         hub_list_model.append(out iter);
         hub_list_model.set(iter, 0, false);
