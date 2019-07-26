@@ -197,6 +197,7 @@ public bool add_new_hub(Gtk.Button button) {
     if (session.send_message(message) != 200) { show_message(add_hub_window, "Cannot connect to " + add_hub_ip.text + "."); return true; }
     string[] hub_info = ((string)message.response_body.data).split(" ");
     getHTTPResultFromUnixSocket(unixSocketPath, "PUT", "/nodes/" + hub_info[0], json_for_address_and_host_name(ip_port, hub_info[1]));
+    getHTTPResultFromUnixSocket(unixSocketPath, "POST", "/connections/connect?save=1", "[\"" + (string)ip_port + "\"]");
     add_hub_ip.text = "";
     reload_hub_list();
     add_hub_window.hide();
