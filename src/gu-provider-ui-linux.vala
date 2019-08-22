@@ -261,7 +261,7 @@ public class GUProviderUI : Gtk.Application {
         bool config_exists = false;
         string config_file_path = GLib.Path.build_filename(GLib.Environment.get_user_config_dir(), CONFIG_FILE_NAME);
         KeyFile config_file = new KeyFile();
-        try { if (config_file.load_from_file(config_file_path, NONE)) config_exists = true; } catch (GLib.Error err) {}
+        try { if (config_file.load_from_file(config_file_path, KeyFileFlags.NONE)) config_exists = true; } catch (GLib.Error err) {}
         if (!config_exists) {
             try { config_file.save_to_file(config_file_path); } catch (GLib.Error err) { warning(err.message); }
             main_window.show_all();
