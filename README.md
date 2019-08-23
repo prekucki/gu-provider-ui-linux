@@ -24,7 +24,7 @@ RUN ln -s -f /usr/bin/python3.6 /usr/bin/python3
 
 Go to the gu-provider-ui-linux directory. Make sure that there is a "build" directory inside it, then run:
 
-`docker run -it --rm -u $UID:$UID -v $(dirname $PWD):/src -w /src/$(basename $PWD) vala2deb bash -c '(debuild -us -uc --build=binary)'`
+`docker run -i --rm -u $UID:$GID -v $PWD/deb:/src -v $PWD:/src/build -w /src/build vala2deb bash -c '(debuild -eDEB_BUILD_OPTIONS=noddebs -us -uc --build=binary)'`
 
 ## Building From Sources
 
