@@ -7,8 +7,16 @@ User Interface for Golem Unlimited provider. Displays appindicator in status bar
 ### Step 1: Create Dockerfile
 
 ```
-FROM debian:oldstable
-RUN apt-get update && apt-get install -y libgtk-3-dev devscripts meson valac libappindicator3-dev libsoup2.4-dev libjson-glib-dev libglib2.0-dev
+FROM prekucki/python3:glibc-2.19
+RUN pip3 install --upgrade pip
+RUN pip3 install meson
+RUN pip3 install ninja
+RUN apt-get update && apt-get install -y libgtk-3-dev devscripts valac libappindicator3-dev libsoup2.4-dev libjson-glib-dev libglib2.0-dev
+# required by meson
+RUN ln -s -f /usr/bin/python3.6 /usr/bin/python3
+
+# go to the directory with sources and run:
+# docker run -it --rm -u $UID:$UID -v $(dirname $PWD):/src -w /src/$(basename $PWD) vala2deb bash -c '(debuild -us -uc --build=binary)'
 ```
 
 ### Step 2: Build Docker Image
@@ -19,7 +27,7 @@ RUN apt-get update && apt-get install -y libgtk-3-dev devscripts meson valac lib
 
 Go to the gu-provider-ui-linux directory. Make sure that there is a "build" directory inside it, then run:
 
-`docker run -it --rm -u $UID:$UID -v $PWD:/src -v $PWD/build:/build -w /build vala2deb bash -c '(meson /src ; ninja)'`
+`docker run -it --rm -u $UID:$UID -v $(dirname $PWD):/src -w /src/$(basename $PWD) vala2deb bash -c '(debuild -us -uc --build=binary)'`
 
 ## Building From Sources
 
