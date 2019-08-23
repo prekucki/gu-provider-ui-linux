@@ -14,9 +14,6 @@ RUN pip3 install ninja
 RUN apt-get update && apt-get install -y libgtk-3-dev devscripts valac libappindicator3-dev libsoup2.4-dev libjson-glib-dev libglib2.0-dev
 # required by meson
 RUN ln -s -f /usr/bin/python3.6 /usr/bin/python3
-
-# go to the directory with sources and run:
-# docker run -it --rm -u $UID:$UID -v $(dirname $PWD):/src -w /src/$(basename $PWD) vala2deb bash -c '(debuild -us -uc --build=binary)'
 ```
 
 ### Step 2: Build Docker Image
