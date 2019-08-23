@@ -1,3 +1,4 @@
+# build environment
 FROM prekucki/python3:glibc-2.19
 RUN pip3 install --upgrade pip
 RUN pip3 install meson
