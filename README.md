@@ -14,7 +14,7 @@ Dockerfile is located in the main source directory. Enter:
 
 Go to the gu-provider-ui-linux directory. Run:
 
-`mkdir deb` (this directory must exists and must be writeable)
+`mkdir -p deb/build` (those directories must exists and must be writeable)
 
 `docker run -i --rm -u $UID:$GID -v $PWD/deb:/src -v $PWD:/src/build -w /src/build vala2deb bash -c '(debuild -eDEB_BUILD_OPTIONS=noddebs -us -uc --build=binary)'`
 
