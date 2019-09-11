@@ -88,13 +88,13 @@ public bool on_update_status() {
             indicator.set_icon("golemu-red");
             provider_status.set_text("GU Provider Status: Invalid Answer");
             warning("Invalid answer from the provider: " + err.message);
-            hub_list_model.clear();
+            if (hub_list_model.iter_n_children(null) > 0) hub_list_model.clear();
         }
     } else {
         indicator.set_icon("golemu-red");
         provider_status.set_text("GU Provider Status: Cannot Connect");
         warning("No answer from the provider (status).");
-        hub_list_model.clear();
+        if (hub_list_model.iter_n_children(null) > 0) hub_list_model.clear();
     }
     return true;
 }
