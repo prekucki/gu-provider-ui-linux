@@ -128,7 +128,7 @@ void reload_hub_list() {
     is_provider_in_auto_mode = getHTTPResultFromUnixSocket(unixSocketPath, "GET", "/nodes/auto", "");
     if (is_provider_in_auto_mode == null) { warning("No answer from the provider (hub list)."); return; }
     GLib.SignalHandler.block_by_func(auto_mode, (void*)on_auto_mode_changed, null);
-    auto_mode.set_active(bool.parse(is_provider_in_auto_mode.strip()) ? 2 : 0);
+    auto_mode.set_active(int.parse(is_provider_in_auto_mode.strip()));
     GLib.SignalHandler.unblock_by_func(auto_mode, (void*)on_auto_mode_changed, null);
 
     var json_parser = new Json.Parser();
@@ -203,7 +203,7 @@ public void on_hub_connection_changed(CellRendererText renderer, string path, st
 
     int v = get_selected_value_index(connection_types, text);
     getHTTPResultFromUnixSocket(unixSocketPath, v != 0 ? "PUT" : "DELETE",
-        "/nodes/" + (string)node_id, json_for_address_and_host_name((string)ip_port, (string)host_name));
+        "/nodes/" + (string)node_id, json_for_ip_host_name_access_level((string)ip_port, (string)host_name, v));
     getHTTPResultFromUnixSocket(unixSocketPath, "POST",
                                 "/connections/" + (v != 0 ? "connect" : "disconnect") + "?save=1",
                                 "[\"" + (string)ip_port + "\"]");
@@ -212,7 +212,8 @@ public void on_hub_connection_changed(CellRendererText renderer, string path, st
 }
 
 public void on_auto_mode_changed(Gtk.ComboBox combo) {
-    getHTTPResultFromUnixSocket(unixSocketPath, combo.get_active() != 0 ? "PUT" : "DELETE", "/nodes/auto", "{}");
+    getHTTPResultFromUnixSocket(unixSocketPath, combo.get_active() != 0 ? "PUT" : "DELETE", "/nodes/auto",
+                                json_for_ip_host_name_access_level(null, null, combo.get_active()));
     getHTTPResultFromUnixSocket(unixSocketPath, "PUT", "/connections/mode/" + (combo.get_active() != 0 ? "auto" : "manual") + "?save=1", "");
 }
 
@@ -227,13 +228,13 @@ public bool cancel_add_hub(Gtk.Button button) {
     return true;
 }
 
-public string json_for_address_and_host_name(string address, string host_name) {
+public string json_for_ip_host_name_access_level(string? address, string? host_name, int access_level) {
     Json.Builder b = new Json.Builder();
     b.begin_object();
-    b.set_member_name("address");
-    b.add_string_value(address);
-    b.set_member_name("hostName");
-    b.add_string_value(host_name);
+    if (address != null) { b.set_member_name("address"); b.add_string_value(address); }
+    if (host_name != null) { b.set_member_name("hostName"); b.add_string_value(host_name); }
+    b.set_member_name("accessLevel");
+    b.add_int_value(access_level);
     b.end_object();
     Json.Generator g = new Json.Generator();
     g.set_root(b.get_root());
@@ -248,7 +249,7 @@ public bool add_new_hub(Gtk.Button button) {
     var message = new Soup.Message("GET", "http://" + ip_port + "/node_id/");
     if (session.send_message(message) != 200) { show_message(add_hub_window, "Cannot connect to " + add_hub_ip.text + "."); return true; }
     string[] hub_info = ((string)message.response_body.data).split(" ");
-    getHTTPResultFromUnixSocket(unixSocketPath, "PUT", "/nodes/" + hub_info[0], json_for_address_and_host_name(ip_port, hub_info[1]));
+    getHTTPResultFromUnixSocket(unixSocketPath, "PUT", "/nodes/" + hub_info[0], json_for_ip_host_name_access_level(ip_port, hub_info[1], 1));
     getHTTPResultFromUnixSocket(unixSocketPath, "POST", "/connections/connect?save=1", "[\"" + (string)ip_port + "\"]");
     add_hub_ip.text = "";
     reload_hub_list();
