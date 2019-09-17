@@ -51,6 +51,7 @@ public string? getHTTPResultFromUnixSocket(string path, string method, string qu
 }
 
 void update_connection_status() {
+    if (!main_window.is_visible()) return;
     try {
         HashTable<string, string> hub_statuses = new HashTable<string, string>(str_hash, str_equal);
         var json_parser = new Json.Parser();
