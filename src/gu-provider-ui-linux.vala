@@ -72,7 +72,7 @@ void update_connection_status() {
                 hub_list_model.get_value(iter, 3, out ip);
                 hub_list_model.get_value(iter, 1, out status);
                 var new_status = hub_statuses.contains((string)ip) ? hub_statuses.get((string)ip) : "-";
-                if (status != new_status) { hub_list_model.set(iter, 1, new_status); }
+                if (!(status.get_string() == new_status)) { hub_list_model.set(iter, 1, new_status); }
             }
         }
     } catch (GLib.Error err) {}
