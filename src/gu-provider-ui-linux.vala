@@ -64,14 +64,16 @@ void update_connection_status() {
                 var cols = hub.get_array();
                 hub_statuses.set(cols.get_string_element(0), cols.get_string_element(1));
             }
-            hub_list_model.foreach((model, path, iter) => {
+            int n = hub_list_model.iter_n_children(null);
+            for (int i = 0; i < n; ++i) {
+                TreeIter iter;
                 GLib.Value ip, status;
-                model.get_value(iter, 3, out ip);
-                model.get_value(iter, 1, out status);
+                hub_list_model.get_iter_from_string(out iter, i.to_string());
+                hub_list_model.get_value(iter, 3, out ip);
+                hub_list_model.get_value(iter, 1, out status);
                 var new_status = hub_statuses.contains((string)ip) ? hub_statuses.get((string)ip) : "-";
-                if (status != new_status) { ((Gtk.ListStore)model).set(iter, 1, new_status); }
-                return false;
-            });
+                if (status != new_status) { hub_list_model.set(iter, 1, new_status); }
+            }
         }
     } catch (GLib.Error err) {}
 }
@@ -83,9 +85,12 @@ public bool on_update_status() {
         try {
             json_parser.load_from_data(status, -1);
             var env = json_parser.get_root().get_object().get_object_member("envs").get_string_member("hostDirect");
-            indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
-            if ((env == "Ready") != (provider_status.get_text().contains("Ready") == true)) { reload_hub_list(); }
-            provider_status.set_text("GU Provider Status: " + env);
+            if ((env == "Ready") != (provider_status.get_text().contains("Ready") == true)) {
+                reload_hub_list();
+                indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
+            }
+            var status_text = "GU Provider Status: " + env;
+            if (provider_status.get_text() != status_text) { provider_status.set_text(status_text); }
             if (env == "Ready") {
                 if (upper_row.get_sensitive() == false) { upper_row.set_sensitive(true); hub_list.set_sensitive(true); }
                 update_connection_status();
