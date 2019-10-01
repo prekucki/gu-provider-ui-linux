@@ -1,8 +1,6 @@
 [Desktop Entry]
 Type=Application
-Encoding=UTF-8
 Name=Golem Unlimited Provider UI
-Comment=Golem Unlimited Provider UI
 Exec=gu-provider-ui-linux
-Icon=golem.svg
+Icon=golem
 Terminal=false
