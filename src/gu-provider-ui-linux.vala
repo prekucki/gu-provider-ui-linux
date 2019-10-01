@@ -10,6 +10,8 @@ Gtk.Menu menu;
 Gtk.ListStore hub_list_model;
 Gtk.ListStore connection_types;
 Gtk.ComboBox auto_mode;
+Gtk.Box upper_row;
+Gtk.TreeView hub_list;
 Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
@@ -84,18 +86,23 @@ public bool on_update_status() {
             indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
             if ((env == "Ready") != (provider_status.get_text().contains("Ready") == true)) { reload_hub_list(); }
             provider_status.set_text("GU Provider Status: " + env);
-            if (env == "Ready") { update_connection_status(); }
+            if (env == "Ready") {
+                if (upper_row.get_sensitive() == false) { upper_row.set_sensitive(true); hub_list.set_sensitive(true); }
+                update_connection_status();
+            }
         } catch (GLib.Error err) {
             indicator.set_icon("golemu-red");
             provider_status.set_text("GU Provider Status: Invalid Answer");
             warning("Invalid answer from the provider: " + err.message);
-            if (hub_list_model.iter_n_children(null) > 0) hub_list_model.clear();
+            if (hub_list_model.iter_n_children(null) > 0) { hub_list_model.clear(); }
+            if (upper_row.get_sensitive() == true) { upper_row.set_sensitive(false); hub_list.set_sensitive(false); }
         }
     } else {
         indicator.set_icon("golemu-red");
         provider_status.set_text("GU Provider Status: Cannot Connect");
         warning("No answer from the provider (status).");
-        if (hub_list_model.iter_n_children(null) > 0) hub_list_model.clear();
+        if (hub_list_model.iter_n_children(null) > 0) { hub_list_model.clear(); }
+        if (upper_row.get_sensitive() == true) { upper_row.set_sensitive(false); hub_list.set_sensitive(false); }
     }
     return true;
 }
@@ -184,14 +191,16 @@ void reload_hub_list() {
 }
 
 int get_selected_value_index(Gtk.ListStore store, string text) {
-    int sel = -1;
-    connection_types.foreach((model, path, iter) => {
-        GLib.Value val;
-        model.get_value(iter, 0, out val);
-        if (val == text) { sel = int.parse(path.to_string()); return true; } else { return false; }
-    });
-    assert(sel != -1);
-    return sel;
+    int n = connection_types.iter_n_children(null);
+    for (int i = 0; i < n; ++i) {
+       GLib.Value val;
+       TreeIter iter;
+       connection_types.get_iter_from_string(out iter, i.to_string());
+       connection_types.get_value(iter, 0, out val);
+       if (val.get_string() == text) { return i; }
+    }
+    stderr.printf("Selected value not found.\n");
+    return -1;
 }
 
 public void on_hub_connection_changed(CellRendererText renderer, string path, string text) {
@@ -284,6 +293,8 @@ public class GUProviderUI : Gtk.Application {
             hub_list_model = builder.get_object("hub_list_model") as Gtk.ListStore;
             connection_types = builder.get_object("connection_types") as Gtk.ListStore;
             auto_mode = builder.get_object("auto_mode") as Gtk.ComboBox;
+            upper_row = builder.get_object("upper_row") as Gtk.Box;
+            hub_list = builder.get_object("hub_list") as Gtk.TreeView;
             add_hub_ip = builder.get_object("add_hub_ip") as Gtk.Entry;
             add_hub_port = builder.get_object("add_hub_port") as Gtk.Entry;
             provider_status = builder.get_object("provider_status") as Gtk.Label;
