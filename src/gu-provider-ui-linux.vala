@@ -17,6 +17,7 @@ Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
 Gtk.Label provider_status;
 string unixSocketPath;
+bool connected;
 
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
@@ -84,19 +85,30 @@ public bool on_update_status() {
         var json_parser = new Json.Parser();
         try {
             json_parser.load_from_data(status, -1);
-            var env = json_parser.get_root().get_object().get_object_member("envs").get_string_member("hostDirect");
-            if ((env == "Ready") != (provider_status.get_text().contains("Ready") == true)) {
-                reload_hub_list();
-                indicator.set_icon(env == "Ready" ? "golemu" : "golemu-red");
+            string status_text = "";
+            var envs = json_parser.get_root().get_object().get_object_member("envs");
+            var envNames = envs.get_members();
+            bool ready = false;
+            foreach (string key in envNames) {
+                string value = envs.get_string_member(key);
+                status_text = status_text + (status_text == "" ? "" : ", ") + key + ": " + value;
+                if (value != "Disabled") { ready = true; }
             }
-            var status_text = "GU Provider Status: " + env;
+            if (status_text == "") status_text = "Error";
+            if (ready != connected) {
+                reload_hub_list();
+                indicator.set_icon(ready ? "golemu" : "golemu-red");
+            }
+            status_text = "GU Provider Status: " + status_text;
             if (provider_status.get_text() != status_text) { provider_status.set_text(status_text); }
-            if (env == "Ready") {
+            if (ready) {
                 if (upper_row.get_sensitive() == false) { upper_row.set_sensitive(true); hub_list.set_sensitive(true); }
                 update_connection_status();
             }
+            connected = ready;
         } catch (GLib.Error err) {
             indicator.set_icon("golemu-red");
+            connected = false;
             provider_status.set_text("GU Provider Status: Invalid Answer");
             warning("Invalid answer from the provider: " + err.message);
             if (hub_list_model.iter_n_children(null) > 0) { hub_list_model.clear(); }
@@ -104,6 +116,7 @@ public bool on_update_status() {
         }
     } else {
         indicator.set_icon("golemu-red");
+        connected = false;
         provider_status.set_text("GU Provider Status: Cannot Connect");
         warning("No answer from the provider (status).");
         if (hub_list_model.iter_n_children(null) > 0) { hub_list_model.clear(); }
@@ -309,6 +322,7 @@ public class GUProviderUI : Gtk.Application {
             Process.exit(1);
         }
 
+        connected = false;
         indicator = new Indicator("Golem Unlimited Provider UI", "golemu-red", IndicatorCategory.APPLICATION_STATUS);
         indicator.set_icon("golemu-red");
         indicator.set_status(IndicatorStatus.ACTIVE);
