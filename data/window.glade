@@ -443,6 +443,15 @@
       </object>
     </child>
     <child>
+      <object class="GtkCheckMenuItem" id="launch_at_login_menu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Launch At Login</property>
+        <property name="use_underline">True</property>
+        <signal name="toggled" handler="on_launch_at_login_menu_toggled" swapped="no"/>
+      </object>
+    </child>
+    <child>
       <object class="GtkMenuItem" id="configure_menu">
         <property name="visible">True</property>
         <property name="can_focus">False</property>

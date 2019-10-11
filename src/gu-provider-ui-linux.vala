@@ -16,12 +16,14 @@ Indicator indicator;
 Gtk.Entry add_hub_ip;
 Gtk.Entry add_hub_port;
 Gtk.Label provider_status;
+Gtk.CheckMenuItem launch_at_login_menu;
 string unixSocketPath;
 
 const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 const string SOCKET_PATH_GLOBAL = "/var/run/golemu/gu-provider.socket";
 const string SOCKET_PATH_USER_HOME = ".local/share/golemunlimited/run/gu-provider.socket";
+const string DESKTOP_FILE_NAME = "gu-provider-ui-linux.desktop";
 
 public string? requestHTTPFromUnixSocket(string path, string method, string query, string body) {
     try {
@@ -110,6 +112,29 @@ public bool on_update_status() {
         if (upper_row.get_sensitive() == true) { upper_row.set_sensitive(false); hub_list.set_sensitive(false); }
     }
     return true;
+}
+
+public void on_launch_at_login_menu_toggled(Gtk.CheckMenuItem menu) {
+    var launch_at_login = menu.get_active();
+    string autostart_file_path = GLib.Path.build_filename(Environment.get_user_config_dir(), "autostart/" + DESKTOP_FILE_NAME);
+    if (launch_at_login) {
+        string[] search_dirs = Environment.get_system_data_dirs();
+        foreach (var dir in search_dirs) {
+            string path = GLib.Path.build_filename(dir, "applications/" + DESKTOP_FILE_NAME);
+            var desktop_file = File.new_for_path(path);
+            if (desktop_file.query_exists()) {
+                try {
+                    desktop_file.copy(File.new_for_path(autostart_file_path), 0, null, null);
+                } catch (GLib.Error err) {
+                    menu.set_active(false);
+                    warning(err.message);
+                }
+                break;
+            }
+        }
+    } else {
+        try { File.new_for_path(autostart_file_path).delete(); } catch (GLib.Error err) { warning(err.message); }
+    }
 }
 
 public void on_configure_menu_activate(Gtk.MenuItem menu) {
@@ -303,6 +328,7 @@ public class GUProviderUI : Gtk.Application {
             add_hub_ip = builder.get_object("add_hub_ip") as Gtk.Entry;
             add_hub_port = builder.get_object("add_hub_port") as Gtk.Entry;
             provider_status = builder.get_object("provider_status") as Gtk.Label;
+            launch_at_login_menu = builder.get_object("launch_at_login_menu") as Gtk.CheckMenuItem;
             builder.connect_signals(null);
         } catch (GLib.Error e) {
             stderr.printf("Error while loading GUI: %s\n", e.message);
@@ -314,7 +340,11 @@ public class GUProviderUI : Gtk.Application {
         indicator.set_status(IndicatorStatus.ACTIVE);
         indicator.set_menu(menu);
 
-        var local_path = GLib.Path.build_filename(GLib.Environment.get_home_dir(), SOCKET_PATH_USER_HOME);
+        if (File.new_for_path(GLib.Path.build_filename(Environment.get_user_config_dir(), "autostart/" + DESKTOP_FILE_NAME)).query_exists()) {
+            launch_at_login_menu.set_active(true);
+        }
+
+        var local_path = GLib.Path.build_filename(Environment.get_home_dir(), SOCKET_PATH_USER_HOME);
         if (File.new_for_path(local_path).query_exists()) {
             unixSocketPath = local_path;
         } else {
@@ -330,7 +360,7 @@ public class GUProviderUI : Gtk.Application {
         /* show main window if the config file does not exists, i.e. the app was launched for the first time */
         add_window(main_window);
         bool config_exists = false;
-        string config_file_path = GLib.Path.build_filename(GLib.Environment.get_user_config_dir(), CONFIG_FILE_NAME);
+        string config_file_path = GLib.Path.build_filename(Environment.get_user_config_dir(), CONFIG_FILE_NAME);
         KeyFile config_file = new KeyFile();
         try { if (config_file.load_from_file(config_file_path, KeyFileFlags.NONE)) config_exists = true; } catch (GLib.Error err) {}
         if (!config_exists) {
