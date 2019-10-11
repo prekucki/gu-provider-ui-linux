@@ -139,7 +139,6 @@ public void on_launch_at_login_menu_toggled(Gtk.CheckMenuItem menu) {
                 try {
                     desktop_file.copy(File.new_for_path(autostart_file_path), 0, null, null);
                 } catch (GLib.Error err) {
-                    menu.set_active(false);
                     warning(err.message);
                 }
                 break;
@@ -354,8 +353,11 @@ public class GUProviderUI : Gtk.Application {
         indicator.set_status(IndicatorStatus.ACTIVE);
         indicator.set_menu(menu);
 
-        if (File.new_for_path(GLib.Path.build_filename(Environment.get_user_config_dir(), "autostart/" + DESKTOP_FILE_NAME)).query_exists()) {
+        string autostart_file_path = GLib.Path.build_filename(Environment.get_user_config_dir(), "autostart/" + DESKTOP_FILE_NAME);
+        if (File.new_for_path(autostart_file_path).query_exists()) {
+            GLib.SignalHandler.block_by_func(launch_at_login_menu, (void*)on_launch_at_login_menu_toggled, null);
             launch_at_login_menu.set_active(true);
+            GLib.SignalHandler.unblock_by_func(launch_at_login_menu, (void*)on_launch_at_login_menu_toggled, null);
         }
 
         var local_path = GLib.Path.build_filename(Environment.get_home_dir(), SOCKET_PATH_USER_HOME);
