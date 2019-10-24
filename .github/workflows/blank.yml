@@ -16,5 +16,5 @@ jobs:
     - uses: actions/upload-artifact@master
       with:
         name: deb
-        path: ../*.deb
+        path: gu-provider-ui.deb
      
