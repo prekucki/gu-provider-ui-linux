@@ -2,5 +2,5 @@ name: 'Build Vala Action'
 description: 'Builds Meson project'
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  image: 'docker://prekucki/build-vala:latest'
 
