@@ -11,6 +11,6 @@ jobs:
     - uses: actions/checkout@v1
     - name: Run a one-line script
       run: echo Hello, world!
-    - uses: build-vala-action
+    - uses: ./.github/actions/build-vala-action
       name: local action test
       
