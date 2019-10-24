@@ -1,9 +1,6 @@
 #! /bin/bash
 
-echo pwd is
-pwd
+debuild -eDEB_BUILD_OPTIONS=noddebs -us -uc --build=binary
 
-echo files is
-
-ls -al
+ls ../*.deb
 
