@@ -13,4 +13,8 @@ jobs:
       run: echo Hello, world!
     - uses: ./.github/actions/build-vala-action
       name: local action test
-      
+    - uses: actions/upload-artifact@master
+      with:
+        name: deb
+        path: ../*.deb
+     
