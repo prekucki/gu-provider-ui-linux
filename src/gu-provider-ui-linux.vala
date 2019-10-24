@@ -24,6 +24,7 @@ const int CHECK_STATUS_EVERY_MS = 1000;
 const string CONFIG_FILE_NAME = "gu_provider-ui-linux.conf";
 const string SOCKET_PATH_GLOBAL = "/var/run/golemu/gu-provider.socket";
 const string SOCKET_PATH_USER_HOME = ".local/share/golemunlimited/run/gu-provider.socket";
+const string SOCKET_PATH_BINARY_DIR = "gu-data/run/gu-provider.socket";
 const string DESKTOP_FILE_NAME = "gu-provider-ui-linux.desktop";
 
 public string? requestHTTPFromUnixSocket(string path, string method, string query, string body) {
@@ -361,7 +362,16 @@ public class GUProviderUI : Gtk.Application {
         }
 
         var local_path = GLib.Path.build_filename(Environment.get_home_dir(), SOCKET_PATH_USER_HOME);
-        if (File.new_for_path(local_path).query_exists()) {
+        string? exec_path;
+        try {
+            exec_path = GLib.Path.get_dirname(GLib.FileUtils.read_link("/proc/self/exe"));
+        } catch (GLib.FileError e) {
+            exec_path = null;
+        }
+        var exec_socket_path = exec_path != null ? GLib.Path.build_filename(exec_path, SOCKET_PATH_BINARY_DIR) : null;
+        if (exec_socket_path != null && File.new_for_path(exec_socket_path).query_exists()) {
+            unixSocketPath = exec_socket_path;
+        } else if (File.new_for_path(local_path).query_exists()) {
             unixSocketPath = local_path;
         } else {
             unixSocketPath = SOCKET_PATH_GLOBAL;
